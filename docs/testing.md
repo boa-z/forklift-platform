@@ -10,6 +10,9 @@
 | daemon 单元 | `daemon/src/**` 内嵌 | 23 | 配置解析、VehicleModel/超时、故障滞回、mock 后端、IPC 帧校验 |
 | simulator 单元 | `simulator/src/sim.rs` | 4 | 场景时间线、故障注入、非法方向、场景文件解析 |
 | IPC 集成 | `daemon/tests/ipc_integration.rs` | 2 | 握手、状态、PING、命令应答、故障事件、重连、版本拒绝 |
+| UI 协议交叉 | `ui/tests/protocol.test.ts` | 5 | 解码 Rust 金样帧并回编码客户端消息逐字节比对 |
+| UI 平台 API | `ui/tests/platform.test.ts` | 1 | Mock 传输下握手、状态订阅、命令、PING |
+| 端到端检查 | `tools/ui-sim-check.ts` | 1 | 启动 forklift-sim，TS 平台层验证状态/故障/PING/命令 |
 
 ## 2. 运行方式
 
@@ -20,6 +23,13 @@ cargo test --workspace
 # Linux builder（权威路径：原生 SOCK_SEQPACKET，与 D211 一致）
 D211_REMOTE=user@host tools/test-remote.sh
 D211_REMOTE=user@host D211_REMOTE_PORT=2222 tools/test-remote.sh
+
+# UI 层（Bun）
+cd ui && bun test                       # 协议金样 + 平台 API
+bun tools/ui-sim-check.ts               # 端到端：Rust sim ↔ TS 平台层
+
+# 协议金样重新生成（Rust 侧改动协议后必须执行）
+cargo run -q -p protocol --example emit_golden > ui/tests/golden/protocol.json
 
 # clippy（提交前必须过）
 cargo clippy --workspace --all-targets -- -D warnings

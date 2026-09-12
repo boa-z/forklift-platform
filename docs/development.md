@@ -27,6 +27,8 @@ docs/        架构、协议、功能与测试文档
 ```sh
 cargo test --workspace                     # 本地测试（macOS 走流式兜底）
 cargo clippy --workspace --all-targets -- -D warnings
+cd ui && bun test                          # UI 协议金样 + 平台 API
+bun tools/ui-sim-check.ts                  # Rust sim ↔ TS 平台层端到端
 cargo run -p daemon -- --socket /tmp/forklift.sock
 cargo run -p simulator -- --socket /tmp/forklift.sock --speed 12 --direction reverse
 D211_REMOTE=user@host tools/test-remote.sh # Linux 权威测试

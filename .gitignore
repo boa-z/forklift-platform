@@ -1,5 +1,6 @@
 /target
 /dist
 /.pocket-build
+node_modules
 *.swp
 .DS_Store
