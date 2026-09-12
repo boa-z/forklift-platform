@@ -33,6 +33,7 @@ pub enum MessageType {
 }
 
 impl MessageType {
+    /// 类型码的线格式值。
     pub fn as_u16(self) -> u16 {
         self as u16
     }
@@ -41,6 +42,7 @@ impl MessageType {
 impl TryFrom<u16> for MessageType {
     type Error = ProtocolError;
 
+    /// 由线格式类型码还原枚举，未知值报错。
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
             0x0001 => Ok(Self::Hello),
@@ -90,6 +92,7 @@ pub enum Message {
 }
 
 impl Message {
+    /// 消息对应的类型码。
     pub fn message_type(&self) -> MessageType {
         match self {
             Self::Hello { .. } => MessageType::Hello,
@@ -111,6 +114,7 @@ impl Message {
         }
     }
 
+    /// 按消息类型写入载荷。
     pub fn encode_payload(&self, writer: &mut Writer) {
         match self {
             Self::Hello { client_version } => writer.put_u16(*client_version),
@@ -134,6 +138,7 @@ impl Message {
         }
     }
 
+    /// 按消息类型解析载荷。
     pub fn decode(message_type: MessageType, reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         Ok(match message_type {
             MessageType::Hello => Self::Hello {

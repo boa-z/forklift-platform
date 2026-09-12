@@ -17,6 +17,7 @@ pub struct MessageHeader {
 impl MessageHeader {
     pub const SIZE: usize = 16;
 
+    /// 构造帧头（自动填充 magic 与版本）。
     pub fn new(message_type: MessageType, payload_length: u32, sequence: u32) -> Self {
         Self {
             magic: MAGIC,
@@ -27,6 +28,7 @@ impl MessageHeader {
         }
     }
 
+    /// 序列化为 16 字节小端帧头。
     pub fn to_bytes(self) -> [u8; Self::SIZE] {
         let mut bytes = [0u8; Self::SIZE];
         bytes[0..4].copy_from_slice(&self.magic.to_le_bytes());
@@ -37,6 +39,7 @@ impl MessageHeader {
         bytes
     }
 
+    /// 校验 magic、版本与长度上限后解析帧头。
     pub fn from_bytes(frame: &[u8]) -> Result<Self, ProtocolError> {
         if frame.len() < Self::SIZE {
             return Err(ProtocolError::Truncated {
@@ -71,6 +74,7 @@ impl MessageHeader {
         })
     }
 
+    /// 把帧头中的类型码转换为枚举。
     pub fn message_type(&self) -> Result<MessageType, ProtocolError> {
         MessageType::try_from(self.message_type)
     }

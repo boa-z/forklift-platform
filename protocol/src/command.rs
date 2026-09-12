@@ -13,6 +13,7 @@ pub enum SoundId {
 }
 
 impl SoundId {
+    /// 由线格式值还原音效枚举，未知值报错。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::Button),
@@ -27,6 +28,7 @@ impl SoundId {
         }
     }
 
+    /// 音效的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
