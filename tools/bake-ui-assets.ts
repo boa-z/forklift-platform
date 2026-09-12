@@ -9,15 +9,17 @@
 // - 生成 ui/src/screens/main/assets.gen.ts，组件不得手写素材尺寸。
 
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { deflateSync } from "node:zlib";
 
 const root = join(import.meta.dir, "..");
-const pocketjs = (process.env.POCKETJS_ROOT ?? "").trim();
-if (pocketjs === "") {
+const pocketjsEnv = (process.env.POCKETJS_ROOT ?? "").trim();
+if (pocketjsEnv === "") {
   console.error("bake-ui-assets: 请设置 POCKETJS_ROOT");
   process.exit(1);
 }
+// 相对于执行目录解析，保证动态 import 的路径始终有效。
+const pocketjs = resolve(pocketjsEnv);
 
 const { decodePng } = await import(join(pocketjs, "framework/compiler/pak.ts"));
 
@@ -106,7 +108,7 @@ function padToPow2(image: { width: number; height: number; rgba: Uint8Array }): 
 }
 
 const sources: string[] = [];
-for (const dir of ["src", "status"]) {
+for (const dir of ["src", "status", "error", "selfCheck", "menu"]) {
   const base = join(root, "ui/assets/reference", dir);
   for (const name of readdirSync(base).filter((n) => n.endsWith(".png"))) {
     sources.push(join(base, name));

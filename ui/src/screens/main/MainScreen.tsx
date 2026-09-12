@@ -6,7 +6,10 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { FaultSnapshot, Platform, VehicleState } from "../../platform";
-import { CLASS, SCREEN_CLASS, SLOT_CLASS, SOC_TRACK_CLASS, socFillClass, speedClass } from "../../theme/theme";
+import { playButton } from "../../platform/feedback";
+import BottomNav from "../../components/BottomNav";
+import type { TabId } from "../../nav/nav";
+import { CLASS, SCREEN_CLASS, SOC_TRACK_CLASS, socFillClass, speedClass } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "./assets.gen";
 import {
   formatClock,
@@ -20,11 +23,9 @@ import {
   usable,
 } from "./format";
 import {
-  BOTTOM_BUTTONS,
   COUNTERS,
   SOC,
   SPEED,
-  STATUS_GRID,
   STATUS_ICONS,
   STEER,
   TOOLBAR,
@@ -39,19 +40,8 @@ function imageBox(asset: BakedAsset, x: number, y: number): Record<string, numbe
   return { translateX: x, translateY: y, width: baked.w, height: baked.h };
 }
 
-/** 在给定槽位内居中（返回值相对父元素，父元素已位于槽位原点）。 */
-function centeredInSlot(asset: BakedAsset, w: number, h: number): Record<string, number> {
-  const baked = BAKED[asset];
-  return {
-    translateX: Math.round((w - baked.w) / 2),
-    translateY: Math.round((h - baked.h) / 2),
-    width: baked.w,
-    height: baked.h,
-  };
-}
-
 /** 主屏组件。 */
-export default function MainScreen(props: { platform: Platform }) {
+export default function MainScreen(props: { platform: Platform; onNavigate: (tab: TabId) => void }) {
   const [state, setState] = createSignal<VehicleState | undefined>(undefined);
   const [faults, setFaults] = createSignal<FaultSnapshot>({ timestampMs: 0, faults: [] });
   const [locked, setLocked] = createSignal(false);
@@ -71,7 +61,7 @@ export default function MainScreen(props: { platform: Platform }) {
 
   /** 主动作：点击按钮时的提示音。 */
   const press = (): void => {
-    props.platform.audio.play("button");
+    playButton(props.platform);
   };
 
   /** 运行模式素材（S/E/P）。 */
@@ -148,12 +138,6 @@ export default function MainScreen(props: { platform: Platform }) {
 
   return (
     <View class={SCREEN_CLASS}>
-      {/* 底部按钮槽（背景由 View 绘制，参考 main_bg.png） */}
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.home.x, translateY: BOTTOM_BUTTONS.home.y, width: BOTTOM_BUTTONS.home.w, height: BOTTOM_BUTTONS.home.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.monitor.x, translateY: BOTTOM_BUTTONS.monitor.y, width: BOTTOM_BUTTONS.monitor.w, height: BOTTOM_BUTTONS.monitor.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.fault.x, translateY: BOTTOM_BUTTONS.fault.y, width: BOTTOM_BUTTONS.fault.w, height: BOTTOM_BUTTONS.fault.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.set.x, translateY: BOTTOM_BUTTONS.set.y, width: BOTTOM_BUTTONS.set.w, height: BOTTOM_BUTTONS.set.h }} />
-
       {/* 顶栏 */}
       <Text class={CLASS.clock} style={{ translateX: TOP.rtc.x, translateY: TOP.rtc.y, width: TOP.rtc.w, height: TOP.rtc.h }}>
         {clock()}
@@ -221,7 +205,7 @@ export default function MainScreen(props: { platform: Platform }) {
 
       {/* 车辆图形 */}
       <Show when={gearBaked()}>
-        {(asset) => <Image src={BAKED[asset()].src} class="absolute left-0 top-0" style={imageBox(asset(), VEHICLE.gear.x, VEHICLE.gear.y)} />}
+        {(asset: () => BakedAsset) => <Image src={BAKED[asset()].src} class="absolute left-0 top-0" style={imageBox(asset(), VEHICLE.gear.x, VEHICLE.gear.y)} />}
       </Show>
       <Image
         src={hasFault() ? BAKED.forklift_1.src : BAKED.forklift.src}
@@ -242,19 +226,8 @@ export default function MainScreen(props: { platform: Platform }) {
         )}
       </For>
 
-      {/* 底部导航图标 */}
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.home.x, translateY: BOTTOM_BUTTONS.home.y, width: BOTTOM_BUTTONS.home.w, height: BOTTOM_BUTTONS.home.h }} focusable onPress={press}>
-        <Image src={BAKED.home_1.src} class="absolute left-0 top-0" style={centeredInSlot("home_1", BOTTOM_BUTTONS.home.w, BOTTOM_BUTTONS.home.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.monitor.x, translateY: BOTTOM_BUTTONS.monitor.y, width: BOTTOM_BUTTONS.monitor.w, height: BOTTOM_BUTTONS.monitor.h }} focusable onPress={press}>
-        <Image src={BAKED.find_0.src} class="absolute left-0 top-0" style={centeredInSlot("find_0", BOTTOM_BUTTONS.monitor.w, BOTTOM_BUTTONS.monitor.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.fault.x, translateY: BOTTOM_BUTTONS.fault.y, width: BOTTOM_BUTTONS.fault.w, height: BOTTOM_BUTTONS.fault.h }} focusable onPress={press}>
-        <Image src={BAKED.error_0.src} class="absolute left-0 top-0" style={centeredInSlot("error_0", BOTTOM_BUTTONS.fault.w, BOTTOM_BUTTONS.fault.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.set.x, translateY: BOTTOM_BUTTONS.set.y, width: BOTTOM_BUTTONS.set.w, height: BOTTOM_BUTTONS.set.h }} focusable onPress={press}>
-        <Image src={BAKED.set_0.src} class="absolute left-0 top-0" style={centeredInSlot("set_0", BOTTOM_BUTTONS.set.w, BOTTOM_BUTTONS.set.h)} />
-      </View>
+      {/* 底部导航 */}
+      <BottomNav active="home" onNavigate={props.onNavigate} onPress={press} />
     </View>
   );
 }

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
-    "check": "bunx tsc --noEmit"
+    "check": "bunx tsc --noEmit && bunx tsc --noEmit -p tsconfig.ui.json"
   },
   "devDependencies": {
     "@types/bun": "latest",

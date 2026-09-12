@@ -3,7 +3,7 @@
 import type { Signal, SignalQuality } from "../../platform/protocol";
 
 /** 质量可用性判断（Valid 才显示数值）。 */
-export function usable<T>(signal: Signal<T> | undefined): boolean {
+export function usable<T>(signal: Signal<T> | undefined): signal is Signal<T> {
   return signal !== undefined && signal.quality === "valid";
 }
 

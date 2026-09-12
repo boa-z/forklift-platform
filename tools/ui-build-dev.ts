@@ -8,15 +8,17 @@
 // 产物：dist/ui/forklift-main.js + forklift-main.pak
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const root = join(import.meta.dir, "..");
-const pocketjs = (process.env.POCKETJS_ROOT ?? "").trim();
-if (pocketjs === "") {
+const pocketjsEnv = (process.env.POCKETJS_ROOT ?? "").trim();
+if (pocketjsEnv === "") {
   console.error("ui-build-dev: 请设置 POCKETJS_ROOT 指向 PocketJS 检出目录");
   console.error("  POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts（在 forklift-platform 根目录执行）");
   process.exit(1);
 }
+// 相对于执行目录解析，保证动态 import 路径有效。
+const pocketjs = resolve(pocketjsEnv);
 
 /** 打印错误并退出。 */
 function fail(message: string): never {
@@ -103,7 +105,7 @@ console.log(
 
 // 动态导入 PocketJS 的类型/解析器（仅构建期使用）。
 const platforms = await import(join(pocketjs, "contracts/spec/platforms.ts"));
-const resolve = await import(join(pocketjs, "framework/src/manifest/resolve.ts"));
+const manifestResolve = await import(join(pocketjs, "framework/src/manifest/resolve.ts"));
 const hostInputs = await import(join(pocketjs, "framework/src/manifest/host-build-inputs.ts"));
 
 const TARGET_ID = "d211-linux-dev";
@@ -126,7 +128,7 @@ const contracts = platforms.definePlatformContractRegistry(
 );
 
 const manifest = JSON.parse(await Bun.file(manifestPath).text());
-const resolution = resolve.validateAndResolveBuildPlan(manifest, { target: TARGET_ID }, contracts);
+const resolution = manifestResolve.validateAndResolveBuildPlan(manifest, { target: TARGET_ID }, contracts);
 if (!resolution.ok) {
   console.error("ui-build-dev: manifest 解析失败");
   for (const diagnostic of resolution.diagnostics) {

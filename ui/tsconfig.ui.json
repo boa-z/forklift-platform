@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "solid-js": ["../../pocketjs/node_modules/solid-js/types/index.d.ts"],
+      "solid-js/jsx-runtime": ["../../pocketjs/node_modules/solid-js/types/jsx.d.ts"],
+      "solid-js/*": ["../../pocketjs/node_modules/solid-js/*"],
+      "@pocketjs/framework/components": ["./src/types/pocketjs.d.ts"],
+      "@pocketjs/framework/lifecycle": ["./src/types/pocketjs.d.ts"],
+      "@pocketjs/framework/solid": ["./src/types/pocketjs.d.ts"]
+    }
+  },
+  "include": ["src", "app.tsx", "main.tsx", "tests"]
+}
