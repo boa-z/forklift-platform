@@ -7,11 +7,14 @@
 # tools/d211-data-partition.sh 的构建说明）。
 
 TOOLS=/opt/pocketjs/tools
+# 优先用系统内置 mtd-utils（固件已打包），旧固件回退到 /opt/pocketjs/tools。
+UBIATTACH="$(command -v ubiattach 2>/dev/null || true)"
+[ -n "$UBIATTACH" ] || UBIATTACH="$TOOLS/ubiattach"
 
 attach_and_mount() {
 	printf "Mounting /data: "
 	if [ ! -e /dev/ubi1 ]; then
-		"$TOOLS/ubiattach" -m 11 >/dev/null 2>&1 || true
+		"$UBIATTACH" -m 11 >/dev/null 2>&1 || true
 	fi
 	if [ ! -e /dev/ubi1 ]; then
 		printf "Fail (ubiattach)\n"

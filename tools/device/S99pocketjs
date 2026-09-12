@@ -13,9 +13,13 @@ PIDFILE=/var/run/pocketjs.pid
 
 start() {
 	printf "Starting pocketjs: "
-	# 应用未部署时不接管显示：避免杀掉官方 demo 后黑屏。
+	# 应用或 pak 未部署时不接管显示：避免杀掉官方 demo 后黑屏。
 	[ -x "$DAEMON" ] || {
 		printf "Skip (no %s)\n" "$DAEMON"
+		return 0
+	}
+	[ -f /data/pocketjs/app.pak ] || [ -f "$APPDIR/app.pak" ] || {
+		printf "Skip (no app.pak)\n"
 		return 0
 	}
 	# 官方 demo 不响应 SIGTERM（实测），用 SIGKILL 清场；同时清掉可能残留的
