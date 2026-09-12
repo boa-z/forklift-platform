@@ -1,0 +1,62 @@
+{
+	"config_version":	"jc001",
+	"device":	{
+		"type":	"meter",
+		"version":	"jxc_7size_meter",
+		"meter_code":	9999,
+		"screen size":	700,
+		"resolution_w":	800,
+		"resolution_h":	480
+	},
+	"screen_src":	{
+		"update":	true,
+		"num":	2,
+		"page_01":	{
+			"name":	"page_logo",
+			"img_0":	{
+				"x":	0,
+				"y":	0,
+				"w":	800,
+				"h":	480,
+				"dest":	"logo/CustomerLogo",
+				"format":	"jpg",
+				"src":	"img/jiachen"
+			},
+			"num":	1
+		},
+		"page_02":	{
+			"name":	"page_main",
+			"img_0":	{
+				"x":	0,
+				"y":	0,
+				"w":	800,
+				"h":	480,
+				"dest":	"bg/main_bg",
+				"format":	"png",
+				"src":	"img/main_bg"
+			},
+			"num":	1
+		}
+	},
+	"data_description":	{
+		"update":	true,
+		"format":	"bin",
+		"src":	"bin/pdo_sdo_data",
+		"dest":	"bin/data",
+		"file_size":	157854,
+		"crc":	45424,
+		"global_param_base_addr":	0,
+		"global_param_total":	12,
+		"global_param_index_base_addr":	61,
+		"global_param_index_total":	12,
+		"global_condition_base_addr":	-1,
+		"global_condition_total":	0,
+		"pdo_recv_base_addr":	109,
+		"pdo_recv_total":	4,
+		"pdo_send_base_addr":	229,
+		"pdo_send_total":	1,
+		"sdo_base_addr":	273,
+		"language_addr":	[4313, 14103, 24930, 48999, 65313, 78528, 91613, 106725, 123785, 142978],
+		"language_code":	["zh", "en", "ru", "fr", "de", "ko", "pt", "es", "ar", "ja"]
+	}
+}

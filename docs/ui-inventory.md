@@ -62,7 +62,8 @@ GPS、移动网络信号等联网图标不迁移。
 ## 4. 字体与文案
 
 - 字体：`MiSans Demibold/Medium/Normal/Heavy` 子集化后烘焙；字号对应参考工程的 11–90 px 风格表（`CommonStyleConfig`）。
-- 文案：v1 只做 zh-CN；i18n 表结构保留，阿拉伯语等暂不引入。
+- 文案：v1 只做 zh-CN；字符串与监控菜单树从参考 `data.bin` 生成（见 `localization.md`），
+  阿拉伯语等其他语言表结构保留，暂不引入。
 - 数字仪表使用固定字宽样式，避免刷新时抖动。
 
 ## 5. 主界面元素（首屏复刻范围）
