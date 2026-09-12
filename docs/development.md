@@ -50,6 +50,10 @@ POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts
 - 自动调用 `tools/bake-ui-assets.ts` 烘焙 2 的幂纹理（产物不入库）；
 - 打印 PocketJS 提交号，便于回执追溯。
 
+QuickJS 目标的 PocketJS 检出必须包含 pocket-stack/pocketjs#414 的修复
+（Solid 入口 scheduler globals）；在合入前使用 `fix/solid-scheduler-globals`
+分支（或任何包含该提交的检出），否则平台握手在设备上直接失败。
+
 ## 4. 工作流
 
 ```text
