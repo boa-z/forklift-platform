@@ -49,6 +49,8 @@ export const CLASS = {
   rowValue: "absolute left-0 top-0 text-lg text-right text-[#f5f7fa]",
   emptyText: "absolute left-0 top-0 text-center text-xl text-[#9aa4b2]",
   menuItemText: "absolute left-0 top-0 text-center text-lg text-[#f5f7fa]",
+  progressLabel: "absolute left-0 top-0 text-right text-base text-[#b3b2b3]",
+  enterButtonText: "absolute left-0 top-0 text-center text-xl text-[#f5f7fa]",
 } as const;
 
 /** 电量条填充色（返回完整字面量）。 */

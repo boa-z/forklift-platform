@@ -1,4 +1,4 @@
-// 应用外壳：构造平台 API，按页签路由到各屏。
+// 应用外壳：构造平台 API，先走开机自检，再按页签路由到各屏。
 // Mock 数据由 onFrame 逐帧驱动（QuickJS 无 setInterval）。
 // 屏幕始终挂载：连接过程不阻塞首帧，数据未到时显示占位。
 // D211 宿主 bridge 接通后，这里替换为宿主注入的传输。
@@ -11,12 +11,14 @@ import { createPlatform, MockTransport } from "./src/platform";
 import FaultScreen from "./src/screens/fault/FaultScreen";
 import MainScreen from "./src/screens/main/MainScreen";
 import MonitorScreen from "./src/screens/monitor/MonitorScreen";
+import SelfCheckScreen from "./src/screens/selfcheck/SelfCheckScreen";
 import SetScreen from "./src/screens/set/SetScreen";
 
 /** 叉车仪表应用根组件。 */
 export default function ForkliftApp() {
   const transport = new MockTransport();
   const platform = createPlatform(transport);
+  const [booted, setBooted] = createSignal(false);
   const [tab, setTab] = createSignal<TabId>("home");
 
   onMount(() => {
@@ -36,6 +38,9 @@ export default function ForkliftApp() {
 
   return (
     <Switch>
+      <Match when={!booted()}>
+        <SelfCheckScreen platform={platform} onEnter={() => setBooted(true)} />
+      </Match>
       <Match when={tab() === "monitor"}>
         <MonitorScreen platform={platform} onNavigate={navigate} />
       </Match>
