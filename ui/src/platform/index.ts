@@ -14,7 +14,7 @@ import type { Transport } from "./transport";
 
 export type { Fault, FaultSnapshot, SoundId, SystemState, VehicleState } from "./protocol";
 export type { Transport } from "./transport";
-export { MockTransport, UnixTransport } from "./transport";
+export { MockTransport } from "./mock";
 
 /** 故障变化事件。 */
 export interface FaultEvent {

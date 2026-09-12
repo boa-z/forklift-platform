@@ -1,6 +1,10 @@
 /target
 /dist
 /.pocket-build
+/.pocket
 node_modules
+# 构建期烘焙产物（由 tools/bake-ui-assets.ts 生成）
+ui/assets/pak/
+ui/src/screens/main/assets.gen.ts
 *.swp
 .DS_Store

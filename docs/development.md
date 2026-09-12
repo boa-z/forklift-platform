@@ -34,6 +34,22 @@ cargo run -p simulator -- --socket /tmp/forklift.sock --speed 12 --direction rev
 D211_REMOTE=user@host tools/test-remote.sh # Linux 权威测试
 ```
 
+UI 构建（必须在 **forklift-platform 仓库根**执行，不能从 PocketJS 目录执行）：
+
+```sh
+POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts
+# 产物：dist/ui/forklift-main.js + forklift-main.pak
+```
+
+`ui-build-dev` 的前置条件与行为：
+
+- `POCKETJS_ROOT` 指向完整且已 `bun install` 的 PocketJS 检出（不是随便的目录）；
+- 脚本会预检检出完整性，缺少依赖时给出明确错误；
+- 自动建立 `node_modules/@pocketjs/framework -> $POCKETJS_ROOT` 包链接，
+  避免 `Could not resolve: "@pocketjs/framework/..."` 一类解析失败；
+- 自动调用 `tools/bake-ui-assets.ts` 烘焙 2 的幂纹理（产物不入库）；
+- 打印 PocketJS 提交号，便于回执追溯。
+
 ## 4. 工作流
 
 ```text

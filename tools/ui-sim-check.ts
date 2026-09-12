@@ -7,7 +7,8 @@ import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, wri
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createPlatform, UnixTransport, type Fault, type VehicleState } from "../ui/src/platform";
+import { createPlatform, type Fault, type VehicleState } from "../ui/src/platform";
+import { UnixTransport } from "../ui/src/platform/unix";
 
 /** 轮询等待条件成立，超时抛错。 */
 async function waitFor<T>(probe: () => T | undefined, timeoutMs: number, label: string): Promise<T> {

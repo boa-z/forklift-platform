@@ -33,6 +33,9 @@ cargo run -p simulator -- --socket /tmp/forklift.sock \
 
 # 启动 daemon（mock 后端）
 cargo run -p daemon -- --socket /tmp/forklift.sock
+
+# 构建 UI guest bundle（在仓库根执行，PocketJS 检出需先 bun install）
+POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts
 ```
 
 ## 文档
