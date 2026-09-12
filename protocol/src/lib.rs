@@ -1,9 +1,8 @@
-//! Versioned binary IPC shared by `forkliftd`, `forklift-sim`, and the
-//! PocketJS platform bridge.
+//! 版本化二进制 IPC：`forkliftd`、`forklift-sim` 与 PocketJS platform bridge
+//! 共用。
 //!
-//! Layout: 16-byte header (`magic | version | type | length | sequence`)
-//! followed by a little-endian payload. `SOCK_SEQPACKET` preserves message
-//! boundaries; every frame is still length-checked before decoding.
+//! 布局：16 字节帧头（`magic | version | type | length | sequence`）+ 小端
+//! 载荷。`SOCK_SEQPACKET` 保留消息边界；每一帧仍然会先做长度校验再解码。
 
 pub mod client;
 pub mod codec;

@@ -1,7 +1,7 @@
-//! VehicleState: the single source of truth published to the UI.
+//! VehicleState：发布给 UI 的唯一事实来源。
 //!
-//! Every hardware-derived value is a `Signal<T>`; raw CAN ids, byte offsets,
-//! ADC channels, and GPIO numbers never leave the daemon.
+//! 每个硬件派生值都是 `Signal<T>`；原始 CAN ID、字节偏移、ADC 通道与
+//! GPIO 编号不会离开 daemon。
 
 use crate::codec::{ProtocolError, Reader, Writer};
 
@@ -88,8 +88,8 @@ impl WireValue for RunMode {
     }
 }
 
-/// A timestamped, quality-tagged value. Consumers decide how to present a
-/// `Stale` or `Unavailable` signal; the raw value is never rewritten.
+/// 带时间戳与质量标记的值。消费方决定如何呈现 `Stale`/`Unavailable`；
+/// 原始值不会被改写。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Signal<T: WireValue> {
     pub value: T,
@@ -121,7 +121,7 @@ impl<T: WireValue> Signal<T> {
         now_ms.saturating_sub(self.timestamp_ms)
     }
 
-    /// Marks the signal stale after `timeout_ms` without an update.
+    /// 超过 `timeout_ms` 未更新时标记为 Stale。
     /// 超过超时阈值时把质量降级为 Stale，并返回当前质量。
     pub fn evaluate(&mut self, now_ms: u64, timeout_ms: u64) -> SignalQuality {
         if self.quality == SignalQuality::Unavailable {
@@ -218,7 +218,7 @@ pub struct MotionState {
     pub direction: Signal<Direction>,
     pub parking_brake: Signal<bool>,
     pub steer_angle_deg: Signal<f32>,
-    /// Reference `uintRunMode`: 0 none / 1 S / 2 E / 3 P.
+    /// 参考仪表 `uintRunMode`：0 无 / 1 S / 2 E / 3 P。
     pub run_mode: Signal<RunMode>,
 }
 
@@ -273,7 +273,7 @@ pub struct VehicleState {
 }
 
 impl VehicleState {
-    /// A fully `Unavailable` state, used before the first backend sample.
+    /// 全 `Unavailable` 状态，用于首个后端采样之前。
     /// 构造全 Unavailable 的初始状态（首个采样之前）。
     pub fn unavailable(timestamp_ms: u64) -> Self {
         Self {
@@ -314,7 +314,7 @@ impl VehicleState {
         }
     }
 
-    /// Marks aged signals stale; called once per daemon tick.
+    /// 把所有信号按超时窗口降级；每个 daemon tick 调用一次。
     /// 统一执行超时判定；每个 daemon tick 调用一次。
     pub fn evaluate_timeouts(&mut self, now_ms: u64, timeout_ms: u64) {
         self.timestamp_ms = now_ms;

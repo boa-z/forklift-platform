@@ -1,6 +1,5 @@
-//! Hardware backends. Every subsystem is a trait plus a mock and a
-//! platform implementation; only these modules may touch Linux/ArtInChip
-//! interfaces.
+//! 硬件后端。每个子系统由一个 trait、一个 mock 和一个平台实现组成；
+//! 只有这些模块可以直接访问 Linux/ArtInChip 接口。
 
 pub mod adc;
 pub mod audio;

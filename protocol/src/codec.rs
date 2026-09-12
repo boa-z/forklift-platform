@@ -1,7 +1,6 @@
-//! Wire primitives for the versioned binary protocol.
+//! 版本化二进制协议的线格式原语。
 //!
-//! Every integer is little-endian; the wire layout never depends on Rust's
-//! `repr(C)` or target endianness.
+//! 所有整数均为小端；线格式不依赖 Rust 的 `repr(C)` 或目标端序。
 
 use thiserror::Error;
 
@@ -31,7 +30,7 @@ pub enum ProtocolError {
     StringTooLong,
 }
 
-/// Little-endian payload writer.
+/// 小端载荷写入器。
 #[derive(Default)]
 pub struct Writer {
     buf: Vec<u8>,
@@ -105,7 +104,7 @@ impl Writer {
         self.buf.extend_from_slice(bytes);
     }
 
-    /// Length-prefixed (`u16`) UTF-8 string.
+    /// `u16` 长度前缀的 UTF-8 字符串。
     /// 写入 `u16` 长度前缀的 UTF-8 字符串。
     pub fn put_string(&mut self, value: &str) -> Result<(), ProtocolError> {
         if value.len() > u16::MAX as usize {
@@ -117,7 +116,7 @@ impl Writer {
     }
 }
 
-/// Bounds-checked little-endian reader.
+/// 带边界检查的小端读取器。
 pub struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,

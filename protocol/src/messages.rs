@@ -1,4 +1,4 @@
-//! Message types and their payload codecs.
+//! 消息类型及其载荷编解码。
 
 use crate::codec::{ProtocolError, Reader, Writer};
 use crate::command::SoundId;
@@ -68,7 +68,7 @@ impl TryFrom<u16> for MessageType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Message {
-    /// Client → daemon handshake: the protocol version the UI speaks.
+    /// 客户端 → daemon 握手：声明 UI 使用的协议版本。
     Hello { client_version: u16 },
     ClientVersion(u16),
     ServerVersion(u16),

@@ -1,5 +1,5 @@
-//! Fault policy: independent of the CAN decoder, fed by signal quality and
-//! backend health. The UI renders ids/severities; it never derives faults.
+//! 故障策略：独立于 CAN 解码，输入是信号质量与后端健康。
+//! UI 只渲染 id 与严重度，不自行推导故障。
 
 use std::collections::BTreeMap;
 
@@ -20,12 +20,12 @@ pub struct FaultManager {
 }
 
 impl FaultManager {
+    /// 创建空的故障管理器。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Raises or refreshes a fault. Returns a change only when the fault was
-    /// not already active.
+    /// 产生或刷新一条故障；只有从未激活变为激活时才返回变更。
     pub fn raise(&mut self, id: u32, severity: FaultSeverity, now_ms: u64) -> Option<FaultChange> {
         match self.faults.get_mut(&id) {
             Some(fault) if fault.active => {
@@ -48,6 +48,7 @@ impl FaultManager {
         }
     }
 
+    /// 清除一条故障；未激活时返回空。
     pub fn clear(&mut self, id: u32, now_ms: u64) -> Option<FaultChange> {
         let fault = self.faults.get_mut(&id)?;
         if !fault.active {
@@ -58,8 +59,7 @@ impl FaultManager {
         Some(FaultChange::Cleared(fault.clone()))
     }
 
-    /// Signal-based rules with hysteresis. Backend-failure faults are raised
-    /// by the service, not here.
+    /// 基于信号值执行规则判定（带滞回）；后端失败类故障由服务层直接 raise。
     pub fn evaluate(&mut self, state: &VehicleState, now_ms: u64) -> Vec<FaultChange> {
         let mut changes = Vec::new();
         self.rule(
@@ -92,6 +92,7 @@ impl FaultManager {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// 单条规则：条件成立则 raise，满足清除条件则 clear。
     fn rule(
         &mut self,
         condition: bool,
@@ -112,8 +113,7 @@ impl FaultManager {
         }
     }
 
-    /// Camera policy fault: raised while reverse video is requested but the
-    /// camera reports offline.
+    /// 相机策略故障：倒车需要视频但相机离线时产生，恢复或退出倒车时清除。
     pub fn evaluate_camera(&mut self, camera_expected: bool, online: bool, now_ms: u64) -> Vec<FaultChange> {
         let mut changes = Vec::new();
         if camera_expected && !online {
@@ -126,6 +126,7 @@ impl FaultManager {
         changes
     }
 
+    /// 生成当前故障快照（含已清除项，供 UI 历史展示）。
     pub fn snapshot(&self, now_ms: u64) -> FaultSnapshot {
         FaultSnapshot {
             timestamp_ms: now_ms,
@@ -133,6 +134,7 @@ impl FaultManager {
         }
     }
 
+    /// 当前 active 故障 id 列表。
     pub fn active_ids(&self) -> Vec<u32> {
         self.faults
             .values()
@@ -147,6 +149,7 @@ mod tests {
     use super::*;
     use protocol::VehicleState;
 
+    /// 构造带指定 SOC、CAN 在线的状态，供规则测试使用。
     fn state_with_soc(soc: f32) -> VehicleState {
         let mut state = VehicleState::unavailable(0);
         state.battery.soc_percent = protocol::Signal::new(soc, 1_000);
@@ -154,6 +157,7 @@ mod tests {
         state
     }
 
+    /// 重复 raise 只产生一次事件，并累计发生次数。
     #[test]
     fn raising_twice_emits_one_change_and_counts_occurrences() {
         let mut manager = FaultManager::new();
@@ -168,6 +172,7 @@ mod tests {
         assert_eq!(snapshot.faults[0].last_seen_ms, 200);
     }
 
+    /// 低电量规则具备滞回（20% 触发 / 25% 清除）。
     #[test]
     fn low_battery_rule_has_hysteresis() {
         let mut manager = FaultManager::new();
@@ -179,6 +184,7 @@ mod tests {
         assert!(matches!(cleared.as_slice(), [FaultChange::Cleared(_)]));
     }
 
+    /// CAN 离线先产生后清除。
     #[test]
     fn can_offline_raises_and_clears() {
         let mut manager = FaultManager::new();

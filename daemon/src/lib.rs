@@ -1,8 +1,8 @@
-//! forkliftd: vehicle platform daemon.
+//! forkliftd：车辆平台守护进程。
 //!
-//! Module boundaries follow `docs/architecture-spec.md`:
-//! hardware backends produce samples → `VehicleUpdate` → `VehicleState` →
-//! fault policy → versioned IPC → UI. No business module touches hardware.
+//! 模块边界遵循 `docs/architecture-spec.md`：
+//! 硬件后端产生采样 → `VehicleUpdate` → `VehicleState` → 故障策略 →
+//! 版本化 IPC → UI。业务模块不直接接触硬件。
 
 pub mod backends;
 pub mod config;

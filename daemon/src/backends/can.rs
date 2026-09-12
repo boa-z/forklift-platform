@@ -1,8 +1,7 @@
-//! CAN backend and decoder.
+//! CAN 后端与解码器。
 //!
-//! The decoder ids below are **provisional** until the vehicle CAN matrix is
-//! confirmed; they exist so the pipeline can be exercised end to end. The UI
-//! never sees any of these constants.
+//! 下方解码 ID 在真实车型 CAN 矩阵确认前都是**临时占位**，仅用于打通
+//! 数据链路；UI 永远看不到这些常量。
 
 use thiserror::Error;
 
@@ -30,17 +29,18 @@ pub enum CanError {
 }
 
 pub trait CanBackend: Send {
-    /// Drains frames received since the last call.
+    /// 取走上一次调用以来收到的所有帧。
     fn poll(&mut self, out: &mut Vec<CanFrame>) -> Result<(), CanError>;
 }
 
-/// M1: real SocketCAN. Until the interface is wired this reports Unsupported
-/// so the service can raise `adc_failure`-style health instead of hanging.
+/// M1：真实 SocketCAN。接口接通前返回 Unsupported，让服务层把缺口暴露为
+/// 健康状态而不是空转。
 pub struct SocketCanBackend {
     pub interface: String,
 }
 
 impl SocketCanBackend {
+    /// 记录 CAN 接口名；真实收发在 M1 接入。
     pub fn new(interface: impl Into<String>) -> Self {
         Self {
             interface: interface.into(),
@@ -49,6 +49,7 @@ impl SocketCanBackend {
 }
 
 impl CanBackend for SocketCanBackend {
+    /// M1 前明确返回 Unsupported，让健康模型暴露缺口而不是空转。
     fn poll(&mut self, _out: &mut Vec<CanFrame>) -> Result<(), CanError> {
         Err(CanError::Unsupported)
     }
@@ -63,15 +64,17 @@ pub struct MockCanBackend {
 }
 
 impl MockCanBackend {
+    /// 创建 mock CAN 后端。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Simulates losing the bus (later frames stop).
+    /// 模拟总线断开（后续不再发帧）。
     pub fn set_stopped(&mut self, stopped: bool) {
         self.stopped = stopped;
     }
 
+    /// 依据启动以来的相位生成三帧占位报文。
     fn frames(&mut self, now_ms: u64) -> Vec<CanFrame> {
         let start = *self.started_ms.get_or_insert(now_ms);
         let elapsed = now_ms.saturating_sub(start);
@@ -123,6 +126,7 @@ impl MockCanBackend {
 }
 
 impl CanBackend for MockCanBackend {
+    /// 每 50ms 发一帧组；总线断开时不产生数据。
     fn poll(&mut self, out: &mut Vec<CanFrame>) -> Result<(), CanError> {
         let now_ms = crate::diagnostics::now_ms();
         if self.stopped {
@@ -140,7 +144,7 @@ impl CanBackend for MockCanBackend {
     }
 }
 
-/// Decodes one provisional frame into a partial update.
+/// 把单帧占位报文解码为部分更新。
 pub fn decode(frame: &CanFrame) -> VehicleUpdate {
     let mut update = VehicleUpdate::default();
     match frame.id {
@@ -168,6 +172,7 @@ pub fn decode(frame: &CanFrame) -> VehicleUpdate {
     update
 }
 
+/// 解码一组帧并合并；`can_frame_seen` 标记本批是否收到数据。
 pub fn decode_frames(frames: &[CanFrame]) -> VehicleUpdate {
     let mut update = VehicleUpdate::default();
     for frame in frames {
@@ -181,6 +186,7 @@ pub fn decode_frames(frames: &[CanFrame]) -> VehicleUpdate {
 mod tests {
     use super::*;
 
+    /// mock 帧应解码出可信的速度、SOC 与方向。
     #[test]
     fn mock_frames_decode_to_plausible_values() {
         let mut backend = MockCanBackend::new();
@@ -197,6 +203,7 @@ mod tests {
         assert_eq!(update.direction, Some(Direction::Forward));
     }
 
+    /// 总线断开后不再产生帧。
     #[test]
     fn stopped_mock_emits_nothing() {
         let mut backend = MockCanBackend::new();
@@ -206,6 +213,7 @@ mod tests {
         assert!(frames.is_empty());
     }
 
+    /// SocketCAN 在实现前必须报告 Unsupported。
     #[test]
     fn socketcan_reports_unsupported() {
         let mut backend = SocketCanBackend::new("can0");

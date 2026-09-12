@@ -1,5 +1,5 @@
-//! Commands the UI may send. The set is deliberately small; anything the UI
-//! needs that is not here belongs in a daemon policy, not in a new command.
+//! UI 可以发送的命令。集合刻意保持最小；UI 需要但这里没有的能力，
+//! 应该做成 daemon 策略，而不是新增命令。
 
 use crate::codec::ProtocolError;
 

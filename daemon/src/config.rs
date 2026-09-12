@@ -1,5 +1,5 @@
-//! Runtime configuration: `/etc/forklift/forklift.toml` (missing file means
-//! defaults; parse errors are fatal so a typo cannot silently change behavior).
+//! 运行配置：`/etc/forklift/forklift.toml`（文件不存在使用默认值；存在但解析
+//! 失败会直接报错，避免拼写错误静默生效）。
 
 use std::path::{Path, PathBuf};
 
@@ -17,28 +17,29 @@ pub enum ConfigError {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    /// Unix SOCK_SEQPACKET path for the UI connection.
+    /// UI 连接的 SOCK_SEQPACKET 路径。
     pub socket_path: PathBuf,
-    /// CAN interface name for the SocketCAN backend.
+    /// SocketCAN 后端使用的 CAN 接口名。
     pub can_interface: String,
     /// A signal older than this is published as `Stale`.
     pub signal_timeout_ms: u64,
-    /// Daemon tick period.
+    /// 守护进程 tick 周期。
     pub tick_ms: u64,
     /// `STATE_VEHICLE` publish rate.
     pub publish_hz: u32,
-    /// Master volume (0-100) restored at startup.
+    /// 启动时还原的主音量（0-100）。
     pub volume: u8,
-    /// Panel brightness (0-100) restored at startup.
+    /// 启动时还原的面板亮度（0-100）。
     pub brightness: u8,
-    /// Camera policy participation (`direction == Reverse` shows video).
+    /// 是否参与倒车相机策略（`direction == Reverse` 时显示视频）。
     pub camera_enable: bool,
-    /// Use mock backends instead of Linux/ArtInChip interfaces.
+    /// 使用 mock 后端而不是 Linux/ArtInChip 接口。
     pub use_mock_hardware: bool,
     pub log_level: String,
 }
 
 impl Default for Config {
+    /// 默认配置：mock 后端、/run/forklift 路径、25 Hz 发布。
     fn default() -> Self {
         Self {
             socket_path: PathBuf::from("/run/forklift/forkliftd.sock"),
@@ -56,6 +57,7 @@ impl Default for Config {
 }
 
 impl Config {
+    /// 从可选路径加载配置；路径为空或文件不存在时返回默认值。
     pub fn load(path: Option<&Path>) -> Result<Self, ConfigError> {
         let Some(path) = path else {
             return Ok(Self::default());
@@ -73,10 +75,12 @@ impl Config {
         })
     }
 
+    /// 服务循环周期（毫秒转 Duration，至少 1ms）。
     pub fn tick_duration(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.tick_ms.max(1))
     }
 
+    /// 状态发布周期（由 publish_hz 换算，至少 1ms）。
     pub fn publish_period_ms(&self) -> u64 {
         (1000 / self.publish_hz.max(1) as u64).max(1)
     }
@@ -86,6 +90,7 @@ impl Config {
 mod tests {
     use super::*;
 
+    /// 默认配置应满足基本不变量。
     #[test]
     fn default_config_is_valid() {
         let config = Config::default();
@@ -93,12 +98,14 @@ mod tests {
         assert!(config.use_mock_hardware);
     }
 
+    /// 文件不存在时静默回退默认值。
     #[test]
     fn missing_file_falls_back_to_defaults() {
         let config = Config::load(Some(Path::new("/nonexistent/forklift.toml"))).unwrap();
         assert_eq!(config.socket_path, Config::default().socket_path);
     }
 
+    /// 部分 TOML 只覆盖写明的字段。
     #[test]
     fn partial_toml_overrides_only_named_fields() {
         let dir = std::env::temp_dir();
@@ -111,6 +118,7 @@ mod tests {
         assert_eq!(config.tick_ms, 20);
     }
 
+    /// 未知键必须导致启动失败。
     #[test]
     fn unknown_key_is_rejected() {
         let dir = std::env::temp_dir();

@@ -1,10 +1,9 @@
-//! Vehicle model: the only place that turns backend samples into
-//! `VehicleState`. Raw CAN ids, ADC channels, and GPIO numbers stop here.
+//! 车辆模型：后端采样进入 `VehicleState` 的唯一入口。
+//! 原始 CAN ID、ADC 通道、GPIO 编号在本模块之前就已经被解码消化。
 
 use protocol::{Direction, RunMode, Signal, VehicleState};
 
-/// Partial update produced by a decoder or backend. `None` fields keep the
-/// previous value; `can_frame_seen` records liveness only.
+/// 部分更新：`None` 字段保持旧值；`can_frame_seen` 仅记录链路活性。
 #[derive(Debug, Default, Clone)]
 pub struct VehicleUpdate {
     pub speed_kph: Option<f32>,
@@ -28,7 +27,7 @@ pub struct VehicleUpdate {
 }
 
 impl VehicleUpdate {
-    /// Applies `other` on top of `self`; later decoders win.
+    /// 把 `other` 合并到自身；后到的解码结果优先。
     pub fn merge(&mut self, other: &VehicleUpdate) {
         macro_rules! merge_option {
             ($field:ident) => {
@@ -63,12 +62,14 @@ pub struct VehicleModel {
 }
 
 impl VehicleModel {
+    /// 构造全 Unavailable 的初始车辆模型。
     pub fn new(now_ms: u64) -> Self {
         Self {
             state: VehicleState::unavailable(now_ms),
         }
     }
 
+    /// 应用部分更新，并为每个写入的信号打上当前时间戳。
     pub fn apply(&mut self, update: &VehicleUpdate, now_ms: u64) {
         macro_rules! set_signal {
             ($signal:expr, $value:expr) => {
@@ -98,18 +99,22 @@ impl VehicleModel {
         }
     }
 
+    /// 执行信号超时判定（每个服务 tick 一次）。
     pub fn evaluate_timeouts(&mut self, now_ms: u64, timeout_ms: u64) {
         self.state.evaluate_timeouts(now_ms, timeout_ms);
     }
 
+    /// 更新 CAN 在线标志。
     pub fn set_can_online(&mut self, online: bool) {
         self.state.connectivity.can_online = online;
     }
 
+    /// 更新相机在线标志。
     pub fn set_camera_online(&mut self, online: bool) {
         self.state.connectivity.camera_online = online;
     }
 
+    /// 只读访问当前车辆状态。
     pub fn state(&self) -> &VehicleState {
         &self.state
     }

@@ -1,4 +1,4 @@
-//! Fixed 16-byte frame header: `magic | version | type | length | sequence`.
+//! 固定 16 字节帧头：`magic | version | type | length | sequence`。
 
 use crate::codec::ProtocolError;
 use crate::messages::MessageType;

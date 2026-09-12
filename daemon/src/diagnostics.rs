@@ -1,9 +1,9 @@
-//! Health and runtime telemetry. Memory numbers exist because the D211 has
-//! 64 MB total and the architecture budget must be observable.
+//! 健康与运行时遥测。D211 只有 64 MB RAM，内存数字必须可观测，
+//! 因此系统状态里带 RSS 与 MemAvailable。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Milliseconds since the Unix epoch; the one clock all timestamps use.
+/// Unix 纪元毫秒；所有时间戳统一使用这一个时钟。
 pub fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -13,14 +13,13 @@ pub fn now_ms() -> u64 {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct MemorySample {
-    /// Resident set size of this process (kB).
+    /// 本进程常驻内存（kB）。
     pub rss_kb: u32,
-    /// System-wide `MemAvailable` (kB).
+    /// 系统 `MemAvailable`（kB）。
     pub mem_available_kb: u32,
 }
 
-/// Reads `/proc` on Linux; other platforms report zeroes so the protocol
-/// still carries the fields during Mac development.
+/// Linux 下读取 `/proc`；其他平台返回 0，Mac 开发期间协议字段仍可传递。
 pub fn sample_memory() -> MemorySample {
     #[cfg(target_os = "linux")]
     {
@@ -57,12 +56,14 @@ pub fn sample_memory() -> MemorySample {
 mod tests {
     use super::*;
 
+    /// 时钟应晚于 2020-01-01。
     #[test]
     fn now_ms_is_after_2020() {
         // 2020-01-01 in milliseconds.
         assert!(now_ms() > 1_577_836_800_000);
     }
 
+    /// Linux 下内存采样必须非零。
     #[cfg(target_os = "linux")]
     #[test]
     fn linux_memory_sample_is_nonzero() {

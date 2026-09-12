@@ -1,11 +1,11 @@
-//! ADC backend. Channel numbering is product wiring; the UI only sees
-//! `VehicleState.hydraulics.pressure_mpa` (and future calibrated signals).
+//! ADC 后端。通道编号是产品接线事实；UI 只看到标定后的
+//! `VehicleState.hydraulics.pressure_mpa`（后续还会有其它标定信号）。
 
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AdcChannel {
-    /// GPAI7 on the reference wiring, scaled to MPa by calibration.
+    /// 参考接线为 GPAI7，经标定换算为 MPa。
     HydraulicPressure = 0,
 }
 
@@ -21,11 +21,11 @@ pub trait AdcBackend: Send {
     fn read_channel(&mut self, channel: AdcChannel) -> Result<f32, AdcError>;
 }
 
-/// M2: Linux IIO. Reports Unsupported until the channel/calibration config
-/// is confirmed on hardware.
+/// M2：Linux IIO。在通道与标定参数于硬件上确认前报告 Unsupported。
 pub struct IioAdcBackend;
 
 impl AdcBackend for IioAdcBackend {
+    /// M2 前明确返回 Unsupported。
     fn read_channel(&mut self, _channel: AdcChannel) -> Result<f32, AdcError> {
         Err(AdcError::Unsupported)
     }
@@ -38,12 +38,14 @@ pub struct MockAdcBackend {
 }
 
 impl MockAdcBackend {
+    /// 创建 mock ADC 后端。
     pub fn new() -> Self {
         Self::default()
     }
 }
 
 impl AdcBackend for MockAdcBackend {
+    /// 返回 12–16 MPa 区间的缓慢扫描值。
     fn read_channel(&mut self, _channel: AdcChannel) -> Result<f32, AdcError> {
         self.tick = self.tick.wrapping_add(1);
         Ok(12.0 + (self.tick % 100) as f32 * 0.04)
@@ -54,6 +56,7 @@ impl AdcBackend for MockAdcBackend {
 mod tests {
     use super::*;
 
+    /// mock 采样应始终位于标定区间内。
     #[test]
     fn mock_reads_stay_in_the_calibrated_band() {
         let mut backend = MockAdcBackend::new();
@@ -63,6 +66,7 @@ mod tests {
         }
     }
 
+    /// IIO 在实现前必须报告 Unsupported。
     #[test]
     fn iio_reports_unsupported() {
         let mut backend = IioAdcBackend;

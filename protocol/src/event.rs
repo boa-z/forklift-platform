@@ -1,5 +1,5 @@
-//! Fault and connectivity events. Faults are daemon-owned; the UI only
-//! renders severities and ids it knows how to localize.
+//! 故障与连接性事件。故障由 daemon 维护；UI 只渲染它可以本地化的
+//! id 与严重度。
 
 use crate::codec::{ProtocolError, Reader, Writer};
 
