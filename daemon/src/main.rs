@@ -6,8 +6,9 @@ use std::process::ExitCode;
 use clap::Parser;
 use env_logger::Env;
 use forkliftd::backends::{
-    AicCameraBackend, AlsaAudioBackend, IioAdcBackend, LinuxWatchdog, MockAdcBackend,
-    MockAudioBackend, MockCameraBackend, MockCanBackend, MockWatchdog, SocketCanBackend,
+    AicCameraBackend, AlsaAudioBackend, IioAdcBackend, LinuxWatchdog, McuBackend, MockAdcBackend,
+    MockAudioBackend, MockCameraBackend, MockCanBackend, MockMcuBackend, MockWatchdog,
+    SerialMcuBackend, SocketCanBackend,
 };
 use forkliftd::config::Config;
 use forkliftd::ipc::Server;
@@ -36,14 +37,30 @@ fn build_backends(config: &Config) -> Backends {
             adc: Box::new(MockAdcBackend::new()),
             camera: Box::new(MockCameraBackend::new()),
             audio: Box::new(MockAudioBackend::new(config.volume)),
+            mcu: Box::new(MockMcuBackend::new()),
             watchdog: Box::new(MockWatchdog::new()),
         }
     } else {
+        let mcu: Box<dyn McuBackend> = if config.mcu_enable {
+            match SerialMcuBackend::open(&config.mcu_device, config.mcu_baud) {
+                Ok(backend) => Box::new(backend),
+                Err(error) => {
+                    eprintln!(
+                        "forkliftd: 打开 MCU 串口 {} 失败：{error}（降级为 mock）",
+                        config.mcu_device.display()
+                    );
+                    Box::new(MockMcuBackend::new())
+                }
+            }
+        } else {
+            Box::new(MockMcuBackend::new())
+        };
         Backends {
             can: Box::new(SocketCanBackend::new(config.can_interface.clone())),
             adc: Box::new(IioAdcBackend),
             camera: Box::new(AicCameraBackend),
             audio: Box::new(AlsaAudioBackend),
+            mcu,
             watchdog: Box::new(LinuxWatchdog),
         }
     }

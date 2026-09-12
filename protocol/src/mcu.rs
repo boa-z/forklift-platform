@@ -35,6 +35,10 @@ pub enum McuError {
     BadChecksum { declared: u8, computed: u8 },
     #[error("invalid enum value {value} for {field}")]
     InvalidEnum { field: &'static str, value: u32 },
+    #[error("io error: {message}")]
+    Io { message: String },
+    #[error("unsupported baud rate {baud}")]
+    UnsupportedBaud { baud: u32 },
 }
 
 /// 主索引 + 子索引。

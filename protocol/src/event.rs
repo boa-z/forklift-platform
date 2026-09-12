@@ -236,3 +236,87 @@ impl SystemState {
         })
     }
 }
+
+/// 授权状态快照：权限级别（0=用户，1=管理员，2=超级管理员）与是否已授权。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct AuthStateEvent {
+    pub level: u8,
+    pub authorized: bool,
+}
+
+impl AuthStateEvent {
+    /// 序列化授权状态。
+    pub fn encode(&self, writer: &mut Writer) {
+        writer.put_u8(self.level);
+        writer.put_bool(self.authorized);
+    }
+
+    /// 反序列化授权状态。
+    pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            level: reader.u8()?,
+            authorized: reader.bool()?,
+        })
+    }
+}
+
+/// 防拆状态：使能开关与当前报警标志。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct AntiDismantleEvent {
+    pub enabled: bool,
+    pub alarm: bool,
+}
+
+impl AntiDismantleEvent {
+    /// 序列化防拆状态。
+    pub fn encode(&self, writer: &mut Writer) {
+        writer.put_bool(self.enabled);
+        writer.put_bool(self.alarm);
+    }
+
+    /// 反序列化防拆状态。
+    pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            enabled: reader.bool()?,
+            alarm: reader.bool()?,
+        })
+    }
+}
+
+/// RTC 时间快照（模组下发，6 字节字段）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RtcEvent {
+    pub year: u8,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+}
+
+impl RtcEvent {
+    /// 序列化时间。
+    pub fn encode(&self, writer: &mut Writer) {
+        writer.put_bytes(&[
+            self.year,
+            self.month,
+            self.day,
+            self.hour,
+            self.minute,
+            self.second,
+        ]);
+    }
+
+    /// 反序列化时间。
+    pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
+        let bytes = reader.take(6)?;
+        Ok(Self {
+            year: bytes[0],
+            month: bytes[1],
+            day: bytes[2],
+            hour: bytes[3],
+            minute: bytes[4],
+            second: bytes[5],
+        })
+    }
+}

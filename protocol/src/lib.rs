@@ -18,9 +18,9 @@ pub use client::{Client, ClientError};
 pub use codec::{decode, encode, ProtocolError};
 pub use command::SoundId;
 pub use event::{
-    ConnectivityEvent, Fault, FaultSnapshot, FaultSeverity, HealthState, SystemState,
-    FAULT_ADC_FAILURE, FAULT_AUDIO_FAILURE, FAULT_BATTERY_LOW, FAULT_CAMERA_OFFLINE,
-    FAULT_CAN_OFFLINE, FAULT_MOTOR_OVERHEAT, FAULT_STORAGE_FAILURE,
+    AntiDismantleEvent, AuthStateEvent, ConnectivityEvent, Fault, FaultSnapshot, FaultSeverity,
+    HealthState, RtcEvent, SystemState, FAULT_ADC_FAILURE, FAULT_AUDIO_FAILURE, FAULT_BATTERY_LOW,
+    FAULT_CAMERA_OFFLINE, FAULT_CAN_OFFLINE, FAULT_MOTOR_OVERHEAT, FAULT_STORAGE_FAILURE,
 };
 pub use header::MessageHeader;
 pub use messages::{Message, MessageType};
@@ -31,6 +31,6 @@ pub use state::{
 
 /// `'F' 'L' 'K' 'T'` little-endian.
 pub const MAGIC: u32 = 0x544b_4c46;
-pub const VERSION: u16 = 4;
+pub const VERSION: u16 = 5;
 pub const MAX_PAYLOAD: usize = 64 * 1024;
 pub const HEADER_SIZE: usize = MessageHeader::SIZE;

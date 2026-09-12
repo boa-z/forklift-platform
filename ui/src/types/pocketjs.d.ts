@@ -103,3 +103,19 @@ declare module "@pocketjs/framework/audio" {
   /** 解码 WAV 字节。 */
   export function decodeWav(bytes: Uint8Array): WavPcm;
 }
+
+declare module "@pocketjs/framework/serial" {
+  /** 宿主串口模块命名空间（未挂载时 serialHost() 返回 null）。 */
+  export interface SerialOps {
+    /** 以 raw 8N1 绑定 tty；路径/波特率不支持时返回 false。 */
+    open(path: string, baud: number): boolean;
+    /** 释放 tty（未打开时为空操作）。 */
+    close(): void;
+    /** 发送字节（调用期间借用缓冲）；返回已接受字节数，-1 表示错误。 */
+    write(data: Uint8Array | ArrayBuffer): number;
+    /** 取最多 capacity 字节；空闲时返回空 ArrayBuffer。 */
+    read(capacity?: number): ArrayBuffer;
+  }
+  /** 取串口模块命名空间（宿主未挂载时返回 null）。 */
+  export function serialHost(): SerialOps | null;
+}

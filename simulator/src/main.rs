@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use clap::Parser;
 use env_logger::Env;
-use forkliftd::backends::{MockAdcBackend, MockAudioBackend, MockCameraBackend, MockWatchdog};
+use forkliftd::backends::{
+    MockAdcBackend, MockAudioBackend, MockCameraBackend, MockMcuBackend, MockWatchdog,
+};
 use forkliftd::ipc::Server;
 use forkliftd::service::{Backends, Service, ServiceConfig};
 use protocol::Direction;
@@ -91,6 +93,7 @@ fn main() -> ExitCode {
         adc: Box::new(MockAdcBackend::new()),
         camera: Box::new(MockCameraBackend::new()),
         audio: Box::new(MockAudioBackend::new(70)),
+        mcu: Box::new(MockMcuBackend::new()),
         watchdog: Box::new(MockWatchdog::new()),
     };
     let (server, commands) = match Server::bind(&args.socket) {
@@ -107,6 +110,8 @@ fn main() -> ExitCode {
         camera_enable: true,
         brightness: 80,
         volume: 70,
+        mcu_enable: true,
+        auth_path: std::env::temp_dir().join("forklift-sim-auth.toml"),
     };
     log::info!(target: "sim", "模拟器启动：socket={}", args.socket.display());
     Service::new(config, server, commands, backends).run()

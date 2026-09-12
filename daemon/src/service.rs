@@ -1,16 +1,20 @@
 //! 服务循环：把后端采样收敛为 `VehicleState`，执行故障与相机策略，处理命令，
 //! 并按节流频率通过 IPC 发布状态与事件。`forkliftd` 与 `forklift-sim` 共用。
 
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
 
 use protocol::{
-    ConnectivityEvent, Direction, HealthState, Message, SignalQuality, SystemState, VehicleState,
+    mcu, AntiDismantleEvent, AuthStateEvent, ConnectivityEvent, Direction, HealthState, Message,
+    RtcEvent, SignalQuality, SystemState, VehicleState,
 };
 
+use crate::auth::{AuthManager, SwipeOutcome};
 use crate::backends::{
-    AdcBackend, AdcChannel, AudioBackend, CameraBackend, CameraHealth, CanBackend, WatchdogBackend,
+    AdcBackend, AdcChannel, AudioBackend, CameraBackend, CameraHealth, CanBackend, McuBackend,
+    WatchdogBackend,
 };
 use crate::config::Config;
 use crate::diagnostics::{now_ms, sample_memory};
@@ -24,11 +28,12 @@ pub struct Backends {
     pub adc: Box<dyn AdcBackend>,
     pub camera: Box<dyn CameraBackend>,
     pub audio: Box<dyn AudioBackend>,
+    pub mcu: Box<dyn McuBackend>,
     pub watchdog: Box<dyn WatchdogBackend>,
 }
 
 /// 服务循环参数（由 `Config` 派生，simulator 也可直接构造）。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ServiceConfig {
     /// 主循环周期。
     pub tick: Duration,
@@ -42,6 +47,10 @@ pub struct ServiceConfig {
     pub brightness: u8,
     /// 启动还原的音量。
     pub volume: u8,
+    /// 是否启用 MCU 串口链路。
+    pub mcu_enable: bool,
+    /// 管理员密码等授权状态的持久化路径。
+    pub auth_path: PathBuf,
 }
 
 impl From<&Config> for ServiceConfig {
@@ -54,6 +63,8 @@ impl From<&Config> for ServiceConfig {
             camera_enable: config.camera_enable,
             brightness: config.brightness,
             volume: config.volume,
+            mcu_enable: config.mcu_enable,
+            auth_path: config.auth_path.clone(),
         }
     }
 }
@@ -79,6 +90,8 @@ pub struct Service {
     brightness: u8,
     volume: u8,
     started_ms: u64,
+    auth: AuthManager,
+    last_rtc_query_ms: u64,
 }
 
 impl Service {
@@ -90,8 +103,9 @@ impl Service {
         backends: Backends,
     ) -> Self {
         let now = now_ms();
+        let auth = AuthManager::load(&config.auth_path);
         let mut service = Self {
-            config,
+            config: config.clone(),
             model: VehicleModel::new(now),
             faults: FaultManager::new(),
             backends,
@@ -111,6 +125,8 @@ impl Service {
             brightness: config.brightness,
             volume: config.volume,
             started_ms: now,
+            auth,
+            last_rtc_query_ms: 0,
         };
         service.apply_initial_volume();
         service
@@ -136,6 +152,7 @@ impl Service {
         let now = now_ms();
         self.sample_can(now);
         self.sample_adc(now);
+        self.sample_mcu(now);
         self.model.evaluate_timeouts(now, self.config.signal_timeout_ms);
         self.apply_camera_policy(now);
         self.evaluate_faults(now);
@@ -221,6 +238,115 @@ impl Service {
         }
     }
 
+    /// 轮询 MCU 帧并分发；启用时每 1s 查询一次 RTC。
+    fn sample_mcu(&mut self, now: u64) {
+        if !self.config.mcu_enable {
+            return;
+        }
+        let mut frames = Vec::new();
+        match self.backends.mcu.poll(&mut frames) {
+            Ok(()) => {}
+            Err(error) => log::debug!(target: "mcu", "MCU 采样不可用：{error}"),
+        }
+        for frame in &frames {
+            self.handle_mcu_frame(frame);
+        }
+        if now.saturating_sub(self.last_rtc_query_ms) >= 1_000 {
+            self.last_rtc_query_ms = now;
+            self.send_mcu(mcu::CMD_QUERY, mcu::index::RTC, vec![0; 6]);
+        }
+    }
+
+    /// 向模组发送一帧；失败只记录，不影响服务循环。
+    fn send_mcu(&mut self, cmd: u8, index: mcu::Index, data: Vec<u8>) {
+        if !self.config.mcu_enable {
+            return;
+        }
+        match mcu::Frame::new(cmd, index, data) {
+            Ok(frame) => {
+                if let Err(error) = self.backends.mcu.send(&frame) {
+                    log::warn!(target: "mcu", "MCU 发送失败：{error}");
+                }
+            }
+            Err(error) => log::warn!(target: "mcu", "MCU 帧构造失败：{error}"),
+        }
+    }
+
+    /// 分发一条模组上报帧（刷卡/防拆/RTC/功能配置/沉默期）。
+    fn handle_mcu_frame(&mut self, frame: &mcu::Frame) {
+        match (frame.cmd, frame.index) {
+            (mcu::CMD_SET, mcu::index::SWIPE_REPORT) => self.on_swipe_frame(&frame.data),
+            (mcu::CMD_SET, mcu::index::ANTI_DISMANTLE_REPORT) => {
+                let alarm = frame.data.first().copied().unwrap_or(0) != 0;
+                self.auth.set_anti_dismantle_alarm(alarm);
+                let (enabled, alarm) = self.auth.anti_dismantle();
+                self.server
+                    .publish(&Message::AntiDismantle(AntiDismantleEvent { enabled, alarm }));
+            }
+            (mcu::CMD_QUERY_RESP, mcu::index::RTC) | (mcu::CMD_SET_RESP, mcu::index::RTC) => {
+                if let Ok(rtc) = mcu::RtcTime::decode(&frame.data) {
+                    let event = RtcEvent {
+                        year: rtc.year,
+                        month: rtc.month,
+                        day: rtc.day,
+                        hour: rtc.hour,
+                        minute: rtc.minute,
+                        second: rtc.second,
+                    };
+                    self.server.publish(&Message::Rtc(event));
+                }
+            }
+            (mcu::CMD_QUERY_RESP, mcu::index::MODULE_CONFIG)
+            | (mcu::CMD_SET_RESP, mcu::index::MODULE_CONFIG) => {
+                if let Ok(config) = mcu::ModuleConfig::decode(&frame.data) {
+                    self.auth.dual_auth = config.dual_auth;
+                }
+            }
+            (mcu::CMD_QUERY_RESP, mcu::index::SILENT_TIME)
+            | (mcu::CMD_SET_RESP, mcu::index::SILENT_TIME) => {
+                if let Ok(silent) = mcu::SilentTime::decode(&frame.data) {
+                    self.auth.set_silent(silent);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// 刷卡上报：更新授权状态、回复模组，授权通过后上报开机方式。
+    fn on_swipe_frame(&mut self, data: &[u8]) {
+        let Ok(report) = mcu::SwipeReport::decode(data) else {
+            return;
+        };
+        let outcome = self.auth.on_swipe(&report);
+        self.server.publish(&Message::SwipeReport(report.clone()));
+        let reply_status: u8 = match outcome {
+            SwipeOutcome::Authorized | SwipeOutcome::NeedsLicenseTail => 0,
+            SwipeOutcome::Reported(_) => 1,
+        };
+        self.send_mcu(mcu::CMD_SET, mcu::index::SWIPE_REPLY, vec![reply_status]);
+        self.publish_auth();
+        if matches!(outcome, SwipeOutcome::Authorized) {
+            let kind = if report.is_bluetooth() {
+                mcu::PowerOnType::Bluetooth
+            } else {
+                mcu::PowerOnType::Card
+            };
+            self.send_mcu(
+                mcu::CMD_SET,
+                mcu::index::POWER_ON_REPORT,
+                mcu::power_on_report(kind, report.card),
+            );
+        }
+    }
+
+    /// 广播授权状态（权限级别/是否已授权）。
+    fn publish_auth(&mut self) {
+        self.server.publish(&Message::AuthState(AuthStateEvent {
+            level: self.auth.level(),
+            authorized: self.auth.authorized(),
+        }));
+    }
+
     /// 更新 CAN 在线状态并执行故障规则。
     fn evaluate_faults(&mut self, now: u64) {
         let can_online = self
@@ -267,6 +393,67 @@ impl Service {
                     // 背光后端在 M8 接入 PWM/sysfs；先记录目标值。
                     self.brightness = brightness;
                     log::info!(target: "system", "亮度请求：{brightness}");
+                }
+                Message::VerifyPassword { password } => {
+                    let level = self.auth.verify(&password);
+                    self.server.publish(&Message::AuthLevel(level));
+                    self.publish_auth();
+                }
+                Message::SetAdminPassword {
+                    old_password,
+                    new_password,
+                } => match self.auth.set_admin_password(&old_password, &new_password) {
+                    Ok(()) => self.server.publish(&Message::Ok),
+                    Err(error) => {
+                        log::warn!(target: "auth", "修改管理员密码失败：{error}");
+                        self.server.publish(&Message::Error {
+                            code: 2001,
+                            message: error.to_string(),
+                        });
+                    }
+                },
+                Message::EnterLicenseTail { digits } => match self.auth.enter_license_tail(&digits) {
+                    Ok(true) => {
+                        self.publish_auth();
+                        self.send_mcu(mcu::CMD_SET, mcu::index::SWIPE_REPLY, vec![0]);
+                    }
+                    Ok(false) => self.server.publish(&Message::Error {
+                        code: 2002,
+                        message: "身份证尾号不正确".to_string(),
+                    }),
+                    Err(error) => self.server.publish(&Message::Error {
+                        code: 2003,
+                        message: error.to_string(),
+                    }),
+                },
+                Message::ReportPowerOn { kind, card } => {
+                    let power_on = match kind {
+                        0 => Some(mcu::PowerOnType::Password),
+                        1 => Some(mcu::PowerOnType::Card),
+                        4 => Some(mcu::PowerOnType::Bluetooth),
+                        _ => None,
+                    };
+                    if let Some(power_on) = power_on {
+                        self.send_mcu(
+                            mcu::CMD_SET,
+                            mcu::index::POWER_ON_REPORT,
+                            mcu::power_on_report(power_on, card),
+                        );
+                    }
+                }
+                Message::SwipeReply { status } => {
+                    self.send_mcu(mcu::CMD_SET, mcu::index::SWIPE_REPLY, vec![status]);
+                }
+                Message::SetAntiDismantle { enabled } => {
+                    self.auth.set_anti_dismantle(enabled);
+                    self.send_mcu(
+                        mcu::CMD_SET,
+                        mcu::index::ANTI_DISMANTLE,
+                        vec![u8::from(enabled)],
+                    );
+                    let (enabled, alarm) = self.auth.anti_dismantle();
+                    self.server
+                        .publish(&Message::AntiDismantle(AntiDismantleEvent { enabled, alarm }));
                 }
                 other => {
                     log::warn!(target: "ipc", "客户端 #{} 的命令被忽略：{other:?}", command.client_id);
