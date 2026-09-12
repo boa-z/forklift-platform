@@ -30,8 +30,8 @@ export const TOOLBAR = {
 
 /** 中央车速区。 */
 export const SPEED = {
-  value: { x: 300, y: 85, w: 200, h: 80 },
-  unit: { x: 480, y: 154, w: 100, h: 38 },
+  value: { x: 300, y: 85, w: 185, h: 80 },
+  unit: { x: 495, y: 150, w: 80, h: 38 },
 } as const;
 
 /** 电量区。 */

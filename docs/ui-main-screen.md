@@ -85,6 +85,9 @@
 
 - PocketJS 无圆弧图元：车速以数字呈现（与参考一致），转向角同样为数字；
   未来如需指针表盘按 `implementation-plan.md` §4.3 的 spike 结论处理。
+- PocketJS 字号只支持 12/14/16/18/20/24/36/54px（text-xs/sm/base/lg/xl/2xl/
+  4xl/5xl）；任意 `text-[N]` 不会烘焙字库，文字会不可见。参考的 78px 车速
+  暂用 54px（text-5xl）近似，待确认是否需要更大字号槽。
 - 布局常量集中在 `ui/src/screens/main/layout.ts`，组件不写魔数。
 - 交互：模式/相机/语音/锁为点击按钮；底部四页签负责导航；
   倒车雷达与超速由状态触发显隐。

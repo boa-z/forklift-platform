@@ -39,12 +39,12 @@ function imageBox(asset: BakedAsset, x: number, y: number): Record<string, numbe
   return { translateX: x, translateY: y, width: baked.w, height: baked.h };
 }
 
-/** 在给定槽位内居中。 */
-function centeredBox(asset: BakedAsset, slot: { x: number; y: number; w: number; h: number }): Record<string, number> {
+/** 在给定槽位内居中（返回值相对父元素，父元素已位于槽位原点）。 */
+function centeredInSlot(asset: BakedAsset, w: number, h: number): Record<string, number> {
   const baked = BAKED[asset];
   return {
-    translateX: slot.x + Math.round((slot.w - baked.w) / 2),
-    translateY: slot.y + Math.round((slot.h - baked.h) / 2),
+    translateX: Math.round((w - baked.w) / 2),
+    translateY: Math.round((h - baked.h) / 2),
     width: baked.w,
     height: baked.h,
   };
@@ -107,7 +107,8 @@ export default function MainScreen(props: { platform: Platform }) {
       case "parking_brake":
         return usable(current?.parkingBrake) && current?.parkingBrake.value === true;
       case "gear":
-        return gearBaked() !== null;
+        // 档位在车辆图形区显示，状态矩阵不再重复占位。
+        return false;
       case "seat":
         return usable(current?.seatSwitch) && current?.seatSwitch.value === true;
       case "seatbelt":
@@ -169,18 +170,13 @@ export default function MainScreen(props: { platform: Platform }) {
         <Image src={locked() ? BAKED.lock222.src : BAKED.lock111.src} class="absolute left-0 top-0" style={imageBox(locked() ? "lock222" : "lock111", 0, 0)} />
       </View>
 
-      {/* 次顶栏：运行模式 / 相机 / 多媒体 / 语音 */}
+      {/* 次顶栏：运行模式 / 相机（相机与多媒体按钮在参考布局中互斥，
+          本产品启用相机，隐藏多媒体/语音按钮） */}
       <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.runMode.x, translateY: TOOLBAR.runMode.y, width: TOOLBAR.runMode.w, height: TOOLBAR.runMode.h }} focusable onPress={press}>
         <Image src={BAKED[modeAsset()].src} class="absolute left-0 top-0" style={imageBox(modeAsset(), 0, 0)} />
       </View>
       <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.camera.x, translateY: TOOLBAR.camera.y, width: TOOLBAR.camera.w, height: TOOLBAR.camera.h }} focusable onPress={press}>
         <Image src={BAKED.camera_1.src} class="absolute left-0 top-0" style={imageBox("camera_1", 0, 0)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.multiMedia.x, translateY: TOOLBAR.multiMedia.y, width: TOOLBAR.multiMedia.w, height: TOOLBAR.multiMedia.h }} focusable onPress={press}>
-        <Image src={BAKED.video_1.src} class="absolute left-0 top-0" style={imageBox("video_1", 0, 0)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.voice.x, translateY: TOOLBAR.voice.y, width: TOOLBAR.voice.w, height: TOOLBAR.voice.h }} focusable onPress={press}>
-        <Image src={BAKED.mic_1.src} class="absolute left-0 top-0" style={imageBox("mic_1", 0, 0)} />
       </View>
 
       {/* 车速 */}
@@ -248,16 +244,16 @@ export default function MainScreen(props: { platform: Platform }) {
 
       {/* 底部导航图标 */}
       <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.home.x, translateY: BOTTOM_BUTTONS.home.y, width: BOTTOM_BUTTONS.home.w, height: BOTTOM_BUTTONS.home.h }} focusable onPress={press}>
-        <Image src={BAKED.home_1.src} class="absolute left-0 top-0" style={centeredBox("home_1", BOTTOM_BUTTONS.home)} />
+        <Image src={BAKED.home_1.src} class="absolute left-0 top-0" style={centeredInSlot("home_1", BOTTOM_BUTTONS.home.w, BOTTOM_BUTTONS.home.h)} />
       </View>
       <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.monitor.x, translateY: BOTTOM_BUTTONS.monitor.y, width: BOTTOM_BUTTONS.monitor.w, height: BOTTOM_BUTTONS.monitor.h }} focusable onPress={press}>
-        <Image src={BAKED.find_0.src} class="absolute left-0 top-0" style={centeredBox("find_0", BOTTOM_BUTTONS.monitor)} />
+        <Image src={BAKED.find_0.src} class="absolute left-0 top-0" style={centeredInSlot("find_0", BOTTOM_BUTTONS.monitor.w, BOTTOM_BUTTONS.monitor.h)} />
       </View>
       <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.fault.x, translateY: BOTTOM_BUTTONS.fault.y, width: BOTTOM_BUTTONS.fault.w, height: BOTTOM_BUTTONS.fault.h }} focusable onPress={press}>
-        <Image src={BAKED.error_0.src} class="absolute left-0 top-0" style={centeredBox("error_0", BOTTOM_BUTTONS.fault)} />
+        <Image src={BAKED.error_0.src} class="absolute left-0 top-0" style={centeredInSlot("error_0", BOTTOM_BUTTONS.fault.w, BOTTOM_BUTTONS.fault.h)} />
       </View>
       <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.set.x, translateY: BOTTOM_BUTTONS.set.y, width: BOTTOM_BUTTONS.set.w, height: BOTTOM_BUTTONS.set.h }} focusable onPress={press}>
-        <Image src={BAKED.set_0.src} class="absolute left-0 top-0" style={centeredBox("set_0", BOTTOM_BUTTONS.set)} />
+        <Image src={BAKED.set_0.src} class="absolute left-0 top-0" style={centeredInSlot("set_0", BOTTOM_BUTTONS.set.w, BOTTOM_BUTTONS.set.h)} />
       </View>
     </View>
   );

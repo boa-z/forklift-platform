@@ -1,6 +1,7 @@
 // 主题：完整 class 字面量集中定义。
-// PocketJS v1 样式要求 class 是完整字面量（禁止模板拼接），所以这里只提供
-// 整段常量与“返回字面量”的选择函数。
+// PocketJS v1 样式要求 class 是完整字面量（禁止模板拼接）；字号只支持
+// 12/14/16/18/20/24/36/54px（text-xs/sm/base/lg/xl/2xl/4xl/5xl），
+// 其他任意字号不会烘焙字库。
 
 import type { Signal, SignalQuality } from "../platform/protocol";
 
@@ -13,18 +14,18 @@ export const SLOT_CLASS = "absolute left-0 top-0 rounded-[8] bg-[#161717]";
 /** 电量条轨道。 */
 export const SOC_TRACK_CLASS = "absolute left-0 top-0 rounded-[4] border border-[#595757] bg-[#1a1a1a]";
 
-/** 主屏文字 class（全部为完整字面量）。 */
+/** 主屏文字 class（字号使用受支持的字库槽位）。 */
 export const CLASS = {
-  clock: "absolute left-0 top-0 text-[22] text-[#f5f7fa] font-bold",
-  speedNormal: "absolute left-0 top-0 text-right text-[78] text-[#f5f7fa] font-bold",
-  speedWarning: "absolute left-0 top-0 text-right text-[78] text-[#f59e0b] font-bold",
-  speedCritical: "absolute left-0 top-0 text-right text-[78] text-[#ef4444] font-bold",
-  speedUnit: "absolute left-0 top-0 text-[22] text-[#9aa4b2]",
-  socLabel: "absolute left-0 top-0 text-[18] text-[#9aa4b2]",
-  socValue: "absolute left-0 top-0 text-right text-[32] text-[#f5f7fa] font-bold",
-  counter: "absolute left-0 top-0 text-[24] text-[#f5f7fa] font-bold",
-  counterLabel: "absolute left-0 top-0 text-[12] text-[#9aa4b2]",
-  steerValue: "absolute left-0 top-0 text-[18] text-[#f5f7fa]",
+  clock: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
+  speedNormal: "absolute left-0 top-0 text-right text-5xl text-[#f5f7fa] font-bold",
+  speedWarning: "absolute left-0 top-0 text-right text-5xl text-[#f59e0b] font-bold",
+  speedCritical: "absolute left-0 top-0 text-right text-5xl text-[#ef4444] font-bold",
+  speedUnit: "absolute left-0 top-0 text-2xl text-[#9aa4b2]",
+  socLabel: "absolute left-0 top-0 text-lg text-[#9aa4b2]",
+  socValue: "absolute left-0 top-0 text-right text-4xl text-[#f5f7fa] font-bold",
+  counter: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
+  counterLabel: "absolute left-0 top-0 text-xs text-[#9aa4b2]",
+  steerValue: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
 } as const;
 
 /** 电量条填充色（返回完整字面量）。 */
