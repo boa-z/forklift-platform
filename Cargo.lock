@@ -389,8 +389,12 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "env_logger",
+ "forkliftd",
  "log",
  "protocol",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

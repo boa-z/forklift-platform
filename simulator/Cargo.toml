@@ -9,7 +9,11 @@ name = "forklift-sim"
 path = "src/main.rs"
 
 [dependencies]
+forkliftd = { path = "../daemon" }
 protocol.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 log.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toml.workspace = true
