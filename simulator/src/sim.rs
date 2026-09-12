@@ -55,8 +55,9 @@ pub struct Step {
 
 /// 场景文件：TOML 中的 `[[step]]` 数组。
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Scenario {
-    #[serde(default)]
+    #[serde(rename = "step", default)]
     pub steps: Vec<Step>,
 }
 
@@ -278,6 +279,14 @@ mod tests {
         let mut vehicle = SimVehicle::default();
         scenario.apply(0, &mut vehicle).unwrap();
         assert!(vehicle.motor_temp_c > 90.0);
+    }
+
+    /// 验证仓库内置场景文件可被解析。
+    #[test]
+    fn shipped_scenario_parses() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../scenario/reverse.toml");
+        let scenario = Scenario::load(&path).expect("内置场景应可解析");
+        assert!(scenario.steps.len() >= 5);
     }
 
     /// 验证非法方向被拒绝。

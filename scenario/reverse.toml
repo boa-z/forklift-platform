@@ -1,0 +1,24 @@
+# 倒车 + 过热 + CAN 离线演示场景
+# 用法：cargo run -p simulator -- --socket /tmp/forklift.sock --scenario scenario/reverse.toml
+
+[[step]]
+at_ms = 0
+speed_kph = 5
+direction = "forward"
+
+[[step]]
+at_ms = 2000
+direction = "reverse"
+speed_kph = 3
+
+[[step]]
+at_ms = 5000
+fault = "motor_overheat"
+
+[[step]]
+at_ms = 8000
+fault = "can_offline"
+
+[[step]]
+at_ms = 12000
+fault = "recover"
