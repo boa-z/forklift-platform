@@ -2,28 +2,11 @@
 #
 # 4G 数据链路：等待 USB 枚举（PF7 上电由 DTS hog 完成），为 usb0 取 DHCP。
 #
-# 固件镜像不携带 forklift-platform 的构建产物；atsend 由部署脚本
-# （tools/d211-network.sh）按需构建推送。框架支持 ECM（usbnet=1）与
-# RNDIS（usbnet=3）两种模式直接枚举 usb0；仅在部署过 atsend 且长等仍无
-# usb0 时，才尝试用 AT 把模组切到 ECM 并复位重枚举。
-
-AT_PORTS="3 4 2 1 5"
-
-have_atsend() {
-	command -v atsend >/dev/null 2>&1
-}
-
-find_at_port() {
-	have_atsend || return 1
-	for p in $AT_PORTS; do
-		[ -c "/dev/ttyUSB$p" ] || continue
-		if atsend "/dev/ttyUSB$p" AT 2>/dev/null | grep -q OK; then
-			echo "/dev/ttyUSB$p"
-			return 0
-		fi
-	done
-	return 1
-}
+# ECM（usbnet=1）由 cdc_ether、RNDIS（usbnet=3）由 rndis_host 按接口类自动
+# 绑定到 usb0，均不需要 AT 参与。模组 AT 口如需使用，由部署侧按需动态绑定
+# option 驱动（forklift-platform 提供 atsend 诊断工具）。
+#
+# 固件镜像不携带 forklift-platform 的构建产物。
 
 wait_usb0() {
 	i=0
@@ -37,22 +20,9 @@ wait_usb0() {
 
 start() {
 	printf "Starting lte: "
-	if ! wait_usb0 30; then
-		AT=$(find_at_port)
-		if [ -n "$AT" ]; then
-			printf "switch ECM via %s; " "$AT"
-			atsend "$AT" 'AT+QCFG="usbnet",1' >/dev/null 2>&1
-			atsend "$AT" 'AT+CFUN=1,1' >/dev/null 2>&1
-			wait_usb0 30 || {
-				printf "Fail (no usb0)\n"
-				return 1
-			}
-		else
-			wait_usb0 30 || {
-				printf "Fail (no usb0, no atsend)\n"
-				return 1
-			}
-		fi
+	if ! wait_usb0 60; then
+		printf "Fail (no usb0)\n"
+		return 1
 	fi
 	if udhcpc -i usb0 -q -n -b; then
 		printf "dhcp OK \n"

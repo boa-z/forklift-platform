@@ -14,7 +14,8 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dev="$root/tools/device"
 atsend_bin="$root/dist/d211-tools/atsend"
 
-# atsend：新固件已内置 /usr/bin/atsend；本地有交叉编译产物时同步一份（旧固件用）。
+# atsend 为可选诊断工具（AT 查询、按需动态绑定 option 时用）；S92lte 的数据
+# 链路不依赖它。本地有交叉编译产物时同步一份。
 if [[ ! -x "$atsend_bin" && -n "${D211_REMOTE:-}" ]]; then
   echo "d211-network: 在 builder 交叉编译 atsend"
   ssh_opts=()
@@ -37,8 +38,8 @@ if [[ -x "$atsend_bin" ]]; then
   adb push "$atsend_bin" /usr/bin/atsend >/dev/null
   adb shell "chmod +x /usr/bin/atsend"
 else
-  echo "d211-network: 未构建 atsend（固件不含该产物）；S92lte 只等待 usb0，"
-  echo "              不支持从出厂 RNDIS 自动切 ECM。设 D211_REMOTE 可交叉编译后重试。"
+  echo "d211-network: 未构建 atsend：AT 诊断工具不推送（不影响 usb0 数据链路）。"
+  echo "              设 D211_REMOTE 可交叉编译后重试。"
 fi
 
 if [[ -n "${D211_SSID:-}" && -n "${D211_PSK:-}" ]]; then
