@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# 启动 Wi-Fi STA（若存在配置）：优先 /etc/wpa_supplicant.conf，其次 /etc/wifi_net.conf。
+# AIC8800 SDIO 驱动由内核加载，wlan0 就绪后启动 wpa_supplicant 并取 DHCP。
+
+WPA_CONF=/etc/wpa_supplicant.conf
+[ -f "$WPA_CONF" ] || WPA_CONF=/etc/wifi_net.conf
+
+start() {
+	if [ ! -f "$WPA_CONF" ]; then
+		echo "Wi-Fi: no config, skip"
+		return 0
+	fi
+	if [ ! -d /sys/class/net/wlan0 ]; then
+		echo "Wi-Fi: wlan0 not found"
+		return 1
+	fi
+	killall wpa_supplicant 2>/dev/null
+	sleep 1
+	printf "Starting wpa_supplicant: "
+	wpa_supplicant -B -i wlan0 -c "$WPA_CONF" -D nl80211 && printf "OK \n"
+	printf "Starting udhcpc: "
+	udhcpc -i wlan0 -q -n -b && printf "OK \n"
+}
+
+stop() {
+	printf "Stopping Wi-Fi: "
+	killall wpa_supplicant 2>/dev/null
+	printf "OK \n"
+}
+
+case "$1" in
+start)
+	start
+	;;
+stop)
+	stop
+	;;
+restart|reload)
+	stop
+	sleep 1
+	start
+	;;
+*)
+	echo "usage: $0 {start|stop|restart}"
+	exit 1
+	;;
+esac
