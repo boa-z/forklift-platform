@@ -1,0 +1,5 @@
+/target
+/dist
+/.pocket-build
+*.swp
+.DS_Store

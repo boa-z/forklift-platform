@@ -1,0 +1,15 @@
+[package]
+name = "simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "forklift-sim"
+path = "src/main.rs"
+
+[dependencies]
+protocol.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+log.workspace = true
