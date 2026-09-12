@@ -1,12 +1,20 @@
 #!/bin/sh
 #
-# 4G 数据链路：等待 USB 枚举（PF7 上电由 DTS hog 完成），必要时把模组切到
-# ECM 模式，最后为 usb0 取 DHCP。模组 AT 口随模式/枚举顺序变化，脚本按
-# 常见端口顺序探测响应 "OK" 的端口。
+# 4G 数据链路：等待 USB 枚举（PF7 上电由 DTS hog 完成），为 usb0 取 DHCP。
+#
+# 固件镜像不携带 forklift-platform 的构建产物；atsend 由部署脚本
+# （tools/d211-network.sh）按需构建推送。框架支持 ECM（usbnet=1）与
+# RNDIS（usbnet=3）两种模式直接枚举 usb0；仅在部署过 atsend 且长等仍无
+# usb0 时，才尝试用 AT 把模组切到 ECM 并复位重枚举。
 
 AT_PORTS="3 4 2 1 5"
 
+have_atsend() {
+	command -v atsend >/dev/null 2>&1
+}
+
 find_at_port() {
+	have_atsend || return 1
 	for p in $AT_PORTS; do
 		[ -c "/dev/ttyUSB$p" ] || continue
 		if atsend "/dev/ttyUSB$p" AT 2>/dev/null | grep -q OK; then
@@ -19,7 +27,7 @@ find_at_port() {
 
 wait_usb0() {
 	i=0
-	while [ "$i" -lt 30 ]; do
+	while [ "$i" -lt "$1" ]; do
 		[ -d /sys/class/net/usb0 ] && return 0
 		i=$((i + 1))
 		sleep 1
@@ -29,21 +37,21 @@ wait_usb0() {
 
 start() {
 	printf "Starting lte: "
-	if wait_usb0; then
-		printf "usb0 ready; "
-	else
-		# 模组可能仍是 RNDIS（出厂默认 3）：切 ECM 并复位重枚举。
+	if ! wait_usb0 30; then
 		AT=$(find_at_port)
-		if [ -z "$AT" ]; then
-			printf "Fail (no AT port)\n"
-			return 1
-		fi
-		printf "switch ECM via %s; " "$AT"
-		atsend "$AT" 'AT+QCFG="usbnet",1' >/dev/null 2>&1
-		atsend "$AT" 'AT+CFUN=1,1' >/dev/null 2>&1
-		if ! wait_usb0; then
-			printf "Fail (no usb0)\n"
-			return 1
+		if [ -n "$AT" ]; then
+			printf "switch ECM via %s; " "$AT"
+			atsend "$AT" 'AT+QCFG="usbnet",1' >/dev/null 2>&1
+			atsend "$AT" 'AT+CFUN=1,1' >/dev/null 2>&1
+			wait_usb0 30 || {
+				printf "Fail (no usb0)\n"
+				return 1
+			}
+		else
+			wait_usb0 30 || {
+				printf "Fail (no usb0, no atsend)\n"
+				return 1
+			}
 		fi
 	fi
 	if udhcpc -i usb0 -q -n -b; then

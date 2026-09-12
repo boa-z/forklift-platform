@@ -37,7 +37,8 @@ if [[ -x "$atsend_bin" ]]; then
   adb push "$atsend_bin" /usr/bin/atsend >/dev/null
   adb shell "chmod +x /usr/bin/atsend"
 else
-  echo "d211-network: 本地无 atsend 产物，使用固件内置 /usr/bin/atsend"
+  echo "d211-network: 未构建 atsend（固件不含该产物）；S92lte 只等待 usb0，"
+  echo "              不支持从出厂 RNDIS 自动切 ECM。设 D211_REMOTE 可交叉编译后重试。"
 fi
 
 if [[ -n "${D211_SSID:-}" && -n "${D211_PSK:-}" ]]; then
