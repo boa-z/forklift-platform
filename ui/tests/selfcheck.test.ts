@@ -29,6 +29,7 @@ function state(overrides: Partial<VehicleState> = {}): VehicleState {
     seatSwitch: signal(false),
     seatbelt: signal(false),
     keyOn: signal(true),
+    antiDismantle: signal(false),
     canOnline: true,
     cameraOnline: true,
     odometerKm: signal(0),

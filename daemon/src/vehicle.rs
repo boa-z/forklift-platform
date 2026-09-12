@@ -21,6 +21,7 @@ pub struct VehicleUpdate {
     pub seat_switch: Option<bool>,
     pub seatbelt: Option<bool>,
     pub key_on: Option<bool>,
+    pub anti_dismantle: Option<bool>,
     pub odometer_km: Option<f32>,
     pub work_hours: Option<f32>,
     pub controller_online: Option<[bool; 3]>,
@@ -52,6 +53,7 @@ impl VehicleUpdate {
         merge_option!(seat_switch);
         merge_option!(seatbelt);
         merge_option!(key_on);
+        merge_option!(anti_dismantle);
         merge_option!(odometer_km);
         merge_option!(work_hours);
         merge_option!(controller_online);
@@ -95,6 +97,7 @@ impl VehicleModel {
         set_signal!(self.state.io.seat_switch, update.seat_switch);
         set_signal!(self.state.io.seatbelt, update.seatbelt);
         set_signal!(self.state.io.key_on, update.key_on);
+        set_signal!(self.state.io.anti_dismantle, update.anti_dismantle);
         set_signal!(self.state.vehicle.odometer_km, update.odometer_km);
         set_signal!(self.state.vehicle.work_hours, update.work_hours);
         if let Some(online) = update.controller_online {

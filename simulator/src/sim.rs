@@ -19,6 +19,7 @@ pub struct SimVehicle {
     pub direction: Direction,
     pub can_online: bool,
     pub charging: bool,
+    pub anti_dismantle: bool,
 }
 
 impl Default for SimVehicle {
@@ -32,6 +33,7 @@ impl Default for SimVehicle {
             direction: Direction::Neutral,
             can_online: true,
             charging: false,
+            anti_dismantle: false,
         }
     }
 }
@@ -53,6 +55,8 @@ pub struct Step {
     pub direction: Option<String>,
     /// 充电条件注入。
     pub charging: Option<bool>,
+    /// 防拆卸拆除标志注入。
+    pub anti_dismantle: Option<bool>,
     /// `motor_overheat` / `battery_low` / `can_offline` 便捷故障注入。
     pub fault: Option<String>,
 }
@@ -123,6 +127,9 @@ impl Scenario {
             if let Some(charging) = step.charging {
                 vehicle.charging = charging;
             }
+            if let Some(removed) = step.anti_dismantle {
+                vehicle.anti_dismantle = removed;
+            }
             if let Some(fault) = &step.fault {
                 match fault.as_str() {
                     "motor_overheat" => vehicle.motor_temp_c = 95.0,
@@ -160,6 +167,7 @@ pub fn encode_frames(vehicle: &SimVehicle, now_ms: u64) -> Vec<CanFrame> {
     motion[3] = 0;
     motion[4] = RunMode::S.as_u8();
     motion[5] = 0;
+    motion[6] = u8::from(vehicle.anti_dismantle);
 
     vec![
         CanFrame {
@@ -177,7 +185,7 @@ pub fn encode_frames(vehicle: &SimVehicle, now_ms: u64) -> Vec<CanFrame> {
         CanFrame {
             id: forkliftd::backends::can::CAN_ID_MOTION,
             data: motion,
-            dlc: 6,
+            dlc: 7,
             timestamp_ms: now_ms,
         },
     ]
@@ -249,6 +257,7 @@ mod tests {
                     motor_temp_c: None,
                     direction: Some("reverse".to_string()),
                     charging: None,
+                    anti_dismantle: None,
                     fault: None,
                 },
                 Step {
@@ -259,6 +268,7 @@ mod tests {
                     motor_temp_c: None,
                     direction: None,
                     charging: None,
+                    anti_dismantle: None,
                     fault: None,
                 },
             ],
@@ -284,6 +294,7 @@ mod tests {
                 motor_temp_c: None,
                 direction: None,
                 charging: None,
+                anti_dismantle: None,
                 fault: Some("motor_overheat".to_string()),
             }],
         };
@@ -312,6 +323,7 @@ mod tests {
                 motor_temp_c: None,
                 direction: Some("sideways".to_string()),
                 charging: None,
+                anti_dismantle: None,
                 fault: None,
             }],
         };

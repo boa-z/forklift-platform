@@ -3,7 +3,7 @@
 // 各自手写协议常量。
 
 /** 支持的协议版本。 */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /** 'F''L''K''T' 小端。 */
 export const PROTOCOL_MAGIC = 0x544b4c46;
 /** 帧头长度。 */
@@ -51,6 +51,8 @@ export interface VehicleState {
   seatSwitch: Signal<boolean>;
   seatbelt: Signal<boolean>;
   keyOn: Signal<boolean>;
+  /** 防拆卸模块上报的拆除标志。 */
+  antiDismantle: Signal<boolean>;
   canOnline: boolean;
   cameraOnline: boolean;
   odometerKm: Signal<number>;
@@ -370,6 +372,7 @@ function decodeVehicleState(reader: Reader): VehicleState {
     seatSwitch: decodeBoolSignal(reader),
     seatbelt: decodeBoolSignal(reader),
     keyOn: decodeBoolSignal(reader),
+    antiDismantle: decodeBoolSignal(reader),
     canOnline: reader.bool(),
     cameraOnline: reader.bool(),
     odometerKm: decodeF32Signal(reader),

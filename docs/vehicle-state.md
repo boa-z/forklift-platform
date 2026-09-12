@@ -35,6 +35,7 @@ SignalQuality = Valid | Stale | Invalid | Unavailable
 | battery | `voltage_v` | f32 | `floatBatteryVoltage` |
 | battery | `current_a` | f32 | `floatBatteryCurrent`（含 32000 偏移解码） |
 | battery | `charging` | bool | 充电条件满足（钥匙电低且充电电源电压足够；daemon 判定） |
+| io | `anti_dismantle` | bool | 防拆卸模块上报的拆除标志（UI 结合设置项决定是否黑屏遮挡） |
 | motor | `rpm` | f32 | 牵引控制器转速 |
 | motor | `temperature_c` | f32 | 电机温度（原始值 −40） |
 | hydraulics | `pressure_mpa` | f32 | ADC GPAI7 标定后 |

@@ -247,6 +247,8 @@ pub struct IoState {
     pub seat_switch: Signal<bool>,
     pub seatbelt: Signal<bool>,
     pub key_on: Signal<bool>,
+    /// 防拆卸模块上报的拆除标志（配合设置项由 UI 决定是否遮挡）。
+    pub anti_dismantle: Signal<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -304,6 +306,7 @@ impl VehicleState {
                 seat_switch: Signal::unavailable(),
                 seatbelt: Signal::unavailable(),
                 key_on: Signal::unavailable(),
+                anti_dismantle: Signal::unavailable(),
             },
             connectivity: ConnectivityState {
                 can_online: false,
@@ -357,6 +360,7 @@ impl VehicleState {
         self.io.seat_switch.encode(writer);
         self.io.seatbelt.encode(writer);
         self.io.key_on.encode(writer);
+        self.io.anti_dismantle.encode(writer);
         writer.put_bool(self.connectivity.can_online);
         writer.put_bool(self.connectivity.camera_online);
         self.vehicle.odometer_km.encode(writer);
@@ -384,6 +388,7 @@ impl VehicleState {
         let seat_switch = Signal::decode(reader)?;
         let seatbelt = Signal::decode(reader)?;
         let key_on = Signal::decode(reader)?;
+        let anti_dismantle = Signal::decode(reader)?;
         let can_online = reader.bool()?;
         let camera_online = reader.bool()?;
         let odometer_km = Signal::decode(reader)?;
@@ -415,6 +420,7 @@ impl VehicleState {
                 seat_switch,
                 seatbelt,
                 key_on,
+                anti_dismantle,
             },
             connectivity: ConnectivityState {
                 can_online,

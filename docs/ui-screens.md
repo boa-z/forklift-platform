@@ -14,8 +14,8 @@
 | 设置 | `LvglSetScreen.c` | 一级菜单与分页已实现 | 语言键（`data.bin`）；子对话框待实现 |
 | 充电 | `LvglChargingScreen.c` | 已实现 | `VehicleState.battery.charging`（v2 协议） |
 | 密码 | `LvglPasswordScreen.c` | 待实现 | 本地校验 |
-| 移除提示 | `LvglRemovalScreen.c` | 待实现 | 文件系统事件 |
-| 加力 | `LvglBoostScreen.c` | 待实现 | 控制器状态 |
+| 移除提示（防拆卸） | `LvglRemovalScreen.c` | 已实现 | `VehicleState.io.anti_dismantle`（v3 协议） |
+| 加力（开机 Logo 屏） | `LvglBoostScreen.c` | 暂缓 | Logo JPG 需两片 512 纹理（约 2MB），超出 64MB 预算 |
 | 相机 | `LvglCameraScreen.c` | 待实现（P3） | VIN/DE 链路 |
 | 本地升级 | `LvglUpdateScreen.c` | 待实现（P3） | 升级包校验 |
 | 授权 | `LvglAuthorizationScreen.c` | 暂缓 | 联网/RFID |
@@ -43,6 +43,11 @@
 - 充电屏的 50 帧圆环动画只保留 1 帧（参考帧 01）：**PSM 5650 纹理在 D211 core 上渲染崩溃**，
   8888 纹理下 64 MB 内存只放得下单帧；帧动画随 M3 的内存/纹理格式结论补齐。
   另：`u8` 数字字高 90px 超过 PocketJS 字号上限，使用 MiSans 90px 数字贴图。
+- 防拆卸遮挡只按 `anti_dismantle` 显示：设置项（防拆除使能）的持久化随设置子页实现。
+- 开机 Logo 屏暂缓：`logo/logo.jpg` 内容 792×291，按 512 纹理上限需两片 512×512；
+  实测 pak 超过约 9 MB 时设备 OOM（10.5MB 启动即被杀死），待 M3 的内存/纹理方案。
+- 纹理格式实测：`PSM 8888` 正常；`PSM 4444` 可用但渐变有明显色带（充电环保留 8888）；
+  `PSM 5650` 渲染崩溃。
 
 ## 4. 纹理化与裁切
 

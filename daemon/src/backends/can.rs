@@ -63,6 +63,8 @@ pub struct MockCanBackend {
     stopped: bool,
     /// 充电条件标志（mock 电池帧字节 5）。
     charging: bool,
+    /// 防拆卸拆除标志（mock 运动帧字节 6）。
+    anti_dismantle: bool,
 }
 
 impl MockCanBackend {
@@ -79,6 +81,11 @@ impl MockCanBackend {
     /// 设置充电条件标志（mock 场景/测试使用）。
     pub fn set_charging(&mut self, charging: bool) {
         self.charging = charging;
+    }
+
+    /// 设置防拆卸拆除标志（mock 场景/测试使用）。
+    pub fn set_anti_dismantle(&mut self, removed: bool) {
+        self.anti_dismantle = removed;
     }
 
     /// 依据启动以来的相位生成三帧占位报文。
@@ -109,6 +116,7 @@ impl MockCanBackend {
         motion[3] = 0u8; // steer angle 0
         motion[4] = RunMode::S.as_u8();
         motion[5] = 0u8; // parking brake off
+        motion[6] = u8::from(self.anti_dismantle);
 
         vec![
             CanFrame {
@@ -126,7 +134,7 @@ impl MockCanBackend {
             CanFrame {
                 id: CAN_ID_MOTION,
                 data: motion,
-                dlc: 6,
+                dlc: 7,
                 timestamp_ms: now_ms,
             },
         ]
@@ -177,6 +185,9 @@ pub fn decode(frame: &CanFrame) -> VehicleUpdate {
             update.run_mode = RunMode::from_u8(frame.data[4]).ok();
             update.parking_brake = Some(frame.data[5] != 0);
             update.controller_online = Some([true, true, false]);
+            if frame.dlc >= 7 {
+                update.anti_dismantle = Some(frame.data[6] != 0);
+            }
         }
         _ => {}
     }
@@ -225,6 +236,19 @@ mod tests {
         backend.poll(&mut frames).unwrap();
         let update = decode_frames(&frames);
         assert_eq!(update.charging, Some(true));
+    }
+
+    /// 防拆卸标志随运动帧字节 6 传递。
+    #[test]
+    fn anti_dismantle_flag_decodes_from_motion_frame() {
+        let mut backend = MockCanBackend::new();
+        backend.set_anti_dismantle(true);
+        let now = crate::diagnostics::now_ms();
+        backend.started_ms = Some(now.saturating_sub(10_000));
+        let mut frames = Vec::new();
+        backend.poll(&mut frames).unwrap();
+        let update = decode_frames(&frames);
+        assert_eq!(update.anti_dismantle, Some(true));
     }
 
     /// 总线断开后不再产生帧。

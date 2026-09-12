@@ -17,7 +17,7 @@
 | 偏移 | 长度 | 字段 | 说明 |
 | --- | --- | --- | --- |
 | 0 | 4 | `magic` | `0x544B4C46`（`'F''L''K''T'` 小端） |
-| 4 | 2 | `version` | 当前 `2`（v2 起 `VehicleState.battery.charging`）；不等于本版本直接断开 |
+| 4 | 2 | `version` | 当前 `3`（v2 加 `battery.charging`，v3 加 `io.anti_dismantle`）；不等于本版本直接断开 |
 | 6 | 2 | `message_type` | 见消息目录 |
 | 8 | 4 | `payload_length` | 必须 ≤ `MAX_PAYLOAD`（64 KiB）且与实际长度一致 |
 | 12 | 4 | `sequence` | 发送方递增序号，回包可据此对账 |
@@ -29,9 +29,9 @@
 
 ```text
 client                          daemon
-  |  HELLO { client_version: 2 }  |
+  |  HELLO { client_version: 3 }  |
   |------------------------------>|
-  |  SERVER_VERSION { 2 }         |
+  |  SERVER_VERSION { 3 }         |
   |<------------------------------|
   |  STATE_* / EVENT_* ...        |
 ```

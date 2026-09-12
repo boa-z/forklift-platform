@@ -3,7 +3,8 @@
 // 屏幕始终挂载：连接过程不阻塞首帧，数据未到时显示占位。
 // D211 宿主 bridge 接通后，这里替换为宿主注入的传输。
 
-import { createSignal, Match, onCleanup, onMount, Switch } from "solid-js";
+import { createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { TabId } from "./src/nav/nav";
@@ -22,10 +23,12 @@ export default function ForkliftApp() {
   const [booted, setBooted] = createSignal(false);
   const [tab, setTab] = createSignal<TabId>("home");
   const [charging, setCharging] = createSignal(false);
+  const [removed, setRemoved] = createSignal(false);
 
   onMount(() => {
     const unsubscribe = platform.vehicle.subscribe((state) => {
       setCharging(state.charging.quality === "valid" && state.charging.value);
+      setRemoved(state.antiDismantle.quality === "valid" && state.antiDismantle.value);
     });
     onCleanup(unsubscribe);
     platform.connect().catch((error: unknown) => {
@@ -43,7 +46,8 @@ export default function ForkliftApp() {
   };
 
   return (
-    <Switch>
+    <>
+      <Switch>
       {/* 充电条件优先于自检与页签（与参考主循环的条件检测一致）。 */}
       <Match when={charging()}>
         <ChargingScreen platform={platform} />
@@ -63,6 +67,17 @@ export default function ForkliftApp() {
       <Match when={tab() === "home"}>
         <MainScreen platform={platform} onNavigate={navigate} />
       </Match>
-    </Switch>
+      </Switch>
+
+      {/* 防拆卸黑屏：全屏遮挡并吸收触摸（参考 LvglRemovalScreen 的 top layer）。 */}
+      <Show when={removed()}>
+        <View
+          class="absolute left-0 top-0 bg-[#000000]"
+          style={{ translateX: 0, translateY: 0, width: 800, height: 480 }}
+          focusable
+          onPress={() => {}}
+        />
+      </Show>
+    </>
   );
 }

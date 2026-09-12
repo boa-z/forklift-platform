@@ -10,10 +10,12 @@ export class MockTransport implements Transport {
   private closeHandler: ((error?: Error) => void) | undefined;
   private phase = 0;
   private charging: boolean;
+  private antiDismantle: boolean;
 
-  /** 可选注入充电状态；默认未充电。 */
-  constructor(options: { charging?: boolean } = {}) {
+  /** 可选注入充电/防拆卸状态；默认均为 false。 */
+  constructor(options: { charging?: boolean; antiDismantle?: boolean } = {}) {
     this.charging = options.charging ?? false;
+    this.antiDismantle = options.antiDismantle ?? false;
   }
 
   /** 更新充电状态（开发/验收用）。 */
@@ -78,6 +80,7 @@ export class MockTransport implements Transport {
       seatSwitch: signal(true),
       seatbelt: signal(true),
       keyOn: signal(true),
+      antiDismantle: signal(this.antiDismantle),
       canOnline: true,
       cameraOnline: true,
       odometerKm: signal(1234),
