@@ -287,7 +287,8 @@ impl SimMcuBackend {
         }
     }
 
-    /// 取已发送帧快照（诊断与测试）。
+    /// 取已发送帧快照（测试断言用）。
+    #[cfg(test)]
     pub fn sent_frames(&self) -> Vec<Frame> {
         self.sent.clone()
     }
