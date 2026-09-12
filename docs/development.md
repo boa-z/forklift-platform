@@ -59,7 +59,7 @@ QuickJS 目标的 PocketJS 检出必须包含（合入前用对应分支，或�
 | pocket-stack/pocketjs#416 / #417 | quickjs-c 宿主模块钩子 + d211 音频/背光模块（含 pak mmap 与音频时钟修复） | `feat/d211-host-modules`（含前两者） |
 
 设备构建（宿主 + UI）用 `feat/d211-host-modules` 检出可以一次满足三条；
-只构建 UI 时用 `tmp/d211-audio-valid`（本地临时合并分支）亦可。
+只构建 UI 时用本地集成分支 `integration/d211`（`feat/d211-host-modules` 之上叠加 #414，线性历史）亦可。
 
 ## 4. 工作流
 

@@ -55,7 +55,7 @@ const solidEntry = readFileSync(join(pocketjs, "framework/src/index.ts"), "utf8"
 if (!solidEntry.includes("scheduler-polyfill")) {
   fail(
     "PocketJS 检出的 Solid 入口缺少 scheduler polyfill（pocket-stack/pocketjs#414）；" +
-      "请先切到包含该提交的分支（本地集成用 tmp/d211-audio-valid，或 fix/solid-scheduler-globals）",
+      "请先切到包含该提交的分支（本地集成用 integration/d211，或 fix/solid-scheduler-globals）",
   );
 }
 
