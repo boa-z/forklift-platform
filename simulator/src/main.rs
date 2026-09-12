@@ -9,13 +9,11 @@ use std::time::Duration;
 
 use clap::Parser;
 use env_logger::Env;
-use forkliftd::backends::{
-    MockAdcBackend, MockAudioBackend, MockCameraBackend, MockMcuBackend, MockWatchdog,
-};
+use forkliftd::backends::{MockAdcBackend, MockAudioBackend, MockCameraBackend, MockWatchdog};
 use forkliftd::ipc::Server;
 use forkliftd::service::{Backends, Service, ServiceConfig};
 use protocol::Direction;
-use sim::{Scenario, SimCanBackend, SimVehicle};
+use sim::{Scenario, SimCanBackend, SimMcuBackend, SimVehicle};
 
 /// 命令行参数。
 #[derive(Debug, Parser)]
@@ -89,11 +87,11 @@ fn main() -> ExitCode {
     };
 
     let backends = Backends {
-        can: Box::new(SimCanBackend::new(initial, scenario)),
+        can: Box::new(SimCanBackend::new(initial, scenario.clone())),
         adc: Box::new(MockAdcBackend::new()),
         camera: Box::new(MockCameraBackend::new()),
         audio: Box::new(MockAudioBackend::new(70)),
-        mcu: Box::new(MockMcuBackend::new()),
+        mcu: Box::new(SimMcuBackend::new(scenario)),
         watchdog: Box::new(MockWatchdog::new()),
     };
     let (server, commands) = match Server::bind(&args.socket) {
