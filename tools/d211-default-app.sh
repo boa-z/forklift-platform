@@ -17,9 +17,10 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 init_script="$root/tools/device/S99pocketjs"
+data_script="$root/tools/device/S98ubidata"
 
-if [[ ! -f "$init_script" ]]; then
-  echo "d211-default-app: 缺少 $init_script" >&2
+if [[ ! -f "$init_script" || ! -f "$data_script" ]]; then
+  echo "d211-default-app: 缺少 tools/device/S99pocketjs 或 S98ubidata" >&2
   exit 1
 fi
 
@@ -33,9 +34,12 @@ if [[ "${1:-}" == "--restore" ]]; then
   exit 0
 fi
 
-echo "d211-default-app: 推送 S99pocketjs"
+echo "d211-default-app: 推送 S98ubidata + S99pocketjs"
+adb push "$data_script" /etc/init.d/S98ubidata >/dev/null
 adb push "$init_script" /etc/init.d/S99pocketjs >/dev/null
-adb shell "chmod +x /etc/init.d/S99pocketjs"
+adb shell "chmod +x /etc/init.d/S98ubidata /etc/init.d/S99pocketjs"
+# 数据分区若尚未建立，由 tools/d211-data-partition.sh 负责；此处挂载已建立的卷。
+adb shell "/etc/init.d/S98ubidata start >/dev/null 2>&1 || true"
 
 echo "d211-default-app: 禁用官方 S00lvgl（改名保留，不删除）"
 adb shell "[ -f /etc/init.d/S00lvgl ] && mv /etc/init.d/S00lvgl /etc/init.d/S00lvgl.disabled || true"

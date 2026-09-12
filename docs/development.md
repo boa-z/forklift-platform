@@ -85,7 +85,36 @@ tools/d211-default-app.sh --restore  # 还原官方 demo
 - 变更落在设备 rootfs，重启保留，**重新烧录镜像后丢失**（需重跑）；
 - 日志：`/var/log/pocketjs.log`（tmpfs，重启清空）。
 
-## 6. 编码规则
+## 6. 数据分区（/data）
+
+D211 的 128MB NAND 上，mtd11（"ubisystem"，32MB）出厂未使用；参考工程用同类
+分区承载 `/data/lvgl_data` 资源（构建期打成 FATFS 映像）。本产品把它做成
+**UBI + UBIFS** 卷挂到 `/data`，`app.pak` 放在那里，OS 分区只留宿主二进制与入口：
+
+```sh
+D211_REMOTE=user@host tools/d211-data-partition.sh               # 首次建立（幂等）
+D211_REMOTE=user@host tools/d211-data-partition.sh --deploy-pak  # 推送 dist pak 到 /data
+```
+
+- 开机挂载：`/etc/init.d/S98ubidata`（attach mtd11 + mount `ubi1_0`）；设备端工具
+  （ubiformat/ubiattach/ubimkvol/ubiupdatevol）放在 `/opt/pocketjs/tools`；
+  `tools/d211-data-partition.sh` 会从 builder 的 mtd-utils 构建缓存推送；
+- `/etc/init.d/S99pocketjs` 在 `/data/pocketjs/app.pak` 存在时导出
+  `POCKET_PAK` 指向它，否则回退 `/opt/pocketjs/app.pak`；
+- 实测收益：pak（21.7MB）迁走后 rootfs 可用空间 17.7MB → **29MB**，
+  `/data` 占用 20.2MB / 25.9MB；
+- 现状：10 语言语音（zh/en 22.05kHz、其余 11.025kHz）全在 pak 内；
+  若后续要提升采样率或加入大动画，可继续用 /data 余量或扩大卷。
+
+UI 部署流程（有 /data 时）：
+
+```sh
+POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts
+adb push dist/ui/forklift-main.js /opt/pocketjs/app.js
+D211_REMOTE=user@host tools/d211-data-partition.sh --deploy-pak
+```
+
+## 7. 编码规则
 
 - **注释与文档字符串一律用中文；每个函数都必须有注释。**
 - 库代码返回 `Result`；`unwrap()/expect()` 只允许出现在测试或不可达不变量处。

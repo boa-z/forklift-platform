@@ -22,6 +22,10 @@ start() {
 		printf "Fail (no %s)\n" "$APPDIR"
 		return 1
 	}
+	# 数据分区（S98ubidata 挂载）上有 pak 时优先使用：OS 分区只留宿主与入口。
+	if [ -f /data/pocketjs/app.pak ]; then
+		export POCKET_PAK=/data/pocketjs/app.pak
+	fi
 	setsid ./pocketjs-d211 >"$LOGFILE" 2>&1 &
 	PID=$!
 	echo "$PID" >"$PIDFILE"
