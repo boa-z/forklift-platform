@@ -64,7 +64,21 @@ macOS 编辑
   → M1 起：D211 交叉编译 + ADB 部署 + 真机验收
 ```
 
-## 5. 编码规则
+## 5. D211 默认启动我们的 app
+
+设备出厂由 `/etc/init.d/S00lvgl` 启动官方 `test_lvgl`。切换与还原：
+
+```sh
+tools/d211-default-app.sh            # 推送 S99pocketjs，禁用 S00lvgl（改名 .disabled），立即切换
+tools/d211-default-app.sh --restore  # 还原官方 demo
+```
+
+- 脚本可重复执行；`S00lvgl` 只改名不删除；
+- **test_lvgl 忽略 SIGTERM**，启动脚本用 SIGKILL 清场；应用用 `setsid` 脱离 shell 会话；
+- 变更落在设备 rootfs，重启保留，**重新烧录镜像后丢失**（需重跑）；
+- 日志：`/var/log/pocketjs.log`（tmpfs，重启清空）。
+
+## 6. 编码规则
 
 - **注释与文档字符串一律用中文；每个函数都必须有注释。**
 - 库代码返回 `Result`；`unwrap()/expect()` 只允许出现在测试或不可达不变量处。
