@@ -45,7 +45,7 @@ function imageBox(asset: BakedAsset, x: number, y: number): Record<string, numbe
 }
 
 /** 主屏组件。 */
-export default function MainScreen(props: { platform: Platform; onNavigate: (tab: TabId) => void }) {
+export default function MainScreen(props: { platform: Platform; onNavigate: (tab: TabId) => void; onOpenCamera?: () => void }) {
   const [state, setState] = createSignal<VehicleState | undefined>(undefined);
   const [faults, setFaults] = createSignal<FaultSnapshot>({ timestampMs: 0, faults: [] });
   const [locked, setLocked] = createSignal(false);
@@ -165,7 +165,7 @@ export default function MainScreen(props: { platform: Platform; onNavigate: (tab
       <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.runMode.x, translateY: TOOLBAR.runMode.y, width: TOOLBAR.runMode.w, height: TOOLBAR.runMode.h }} focusable onPress={press}>
         <Image src={BAKED[modeAsset()].src} class="absolute left-0 top-0" style={imageBox(modeAsset(), 0, 0)} />
       </View>
-      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.camera.x, translateY: TOOLBAR.camera.y, width: TOOLBAR.camera.w, height: TOOLBAR.camera.h }} focusable onPress={press}>
+      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.camera.x, translateY: TOOLBAR.camera.y, width: TOOLBAR.camera.w, height: TOOLBAR.camera.h }} focusable onPress={() => { press(); props.onOpenCamera?.(); }}>
         <Image src={BAKED.camera_1.src} class="absolute left-0 top-0" style={imageBox("camera_1", 0, 0)} />
       </View>
 

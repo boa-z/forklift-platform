@@ -16,7 +16,7 @@
 | 密码 | `LvglPasswordScreen.c` | 已实现 | 本地校验（超级密码 32431 / 管理员密码） |
 | 移除提示（防拆卸） | `LvglRemovalScreen.c` | 已实现 | `VehicleState.io.anti_dismantle`（v3 协议） |
 | 加力（开机 Logo 屏） | `LvglBoostScreen.c` | 暂缓 | Logo JPG 需两片 512 纹理（约 2MB），超出 64MB 预算 |
-| 相机 | `LvglCameraScreen.c` | 待实现（P3） | VIN/DE 链路 |
+| 相机 | `LvglCameraScreen.c` | 离线占位已实现 | 主屏相机按钮进入；视频链路（VIN/DE）接入后替换占位 |
 | 本地升级 | `LvglUpdateScreen.c` | 待实现（P3） | 升级包校验 |
 | 授权 | `LvglAuthorizationScreen.c` | 暂缓 | 联网/RFID |
 
@@ -48,6 +48,9 @@
   字体子集/阿拉伯语整形未就绪），**亮度/音量**经平台命令下发（`system.setBrightness`、
   `audio.setVolume`）；初始值 70% 为本地默认，设置持久化随 M3 的 daemon 设置存储。
 - 语言切换只影响当前会话（重启回 zh）：持久化同上。
+- 相机屏：布局与参考一致（底部 摄像头1/摄像头2/退出，y=430 高 50），内容区显示
+  `NO SIGNAL`（参考工程无对应语言键，产品文案为 ASCII）；通道可切换并高亮。
+  参考实现切换的是视频源；本产品在 VIN/DE 链路接入前不伪造画面。
 - 密码屏：输入掩码显示为 `*`（参考为 2 秒显隐圆点，需要逐字计时与字形支持）；
   **超级密码 `32431` 与参考一致**，管理员密码存于会话（`ui/src/settings.ts`，持久化随 M3）。
   入口：设置 → 「高级设置」需要管理员/超级密码（参考门禁），本地设置第 4 页

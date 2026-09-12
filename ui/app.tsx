@@ -9,6 +9,7 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { TabId } from "./src/nav/nav";
 import { createPlatform, MockTransport } from "./src/platform";
+import CameraScreen from "./src/screens/camera/CameraScreen";
 import FaultScreen from "./src/screens/fault/FaultScreen";
 import ChargingScreen from "./src/screens/charging/ChargingScreen";
 import MainScreen from "./src/screens/main/MainScreen";
@@ -24,6 +25,7 @@ export default function ForkliftApp() {
   const [tab, setTab] = createSignal<TabId>("home");
   const [charging, setCharging] = createSignal(false);
   const [removed, setRemoved] = createSignal(false);
+  const [cameraOpen, setCameraOpen] = createSignal(false);
 
   onMount(() => {
     const unsubscribe = platform.vehicle.subscribe((state) => {
@@ -55,6 +57,10 @@ export default function ForkliftApp() {
       <Match when={!booted()}>
         <SelfCheckScreen platform={platform} onEnter={() => setBooted(true)} />
       </Match>
+      {/* 相机屏（主屏摄像头按钮进入） */}
+      <Match when={cameraOpen()}>
+        <CameraScreen platform={platform} onExit={() => setCameraOpen(false)} />
+      </Match>
       <Match when={tab() === "monitor"}>
         <MonitorScreen platform={platform} onNavigate={navigate} />
       </Match>
@@ -65,7 +71,7 @@ export default function ForkliftApp() {
         <SetScreen platform={platform} onNavigate={navigate} />
       </Match>
       <Match when={tab() === "home"}>
-        <MainScreen platform={platform} onNavigate={navigate} />
+        <MainScreen platform={platform} onNavigate={navigate} onOpenCamera={() => setCameraOpen(true)} />
       </Match>
       </Switch>
 

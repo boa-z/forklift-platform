@@ -37,6 +37,11 @@ export const CLASS = {
   dialogValue: "absolute left-0 top-0 text-right text-xl text-[#f5f7fa]",
   passwordText: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
   passwordKey: "absolute left-0 top-0 text-center text-2xl text-[#f5f7fa]",
+  cameraOffline: "absolute left-0 top-0 text-center text-2xl text-[#e5e7eb]",
+  cameraChannel: "absolute left-0 top-0 text-center text-xl text-[#9aa4b2]",
+  cameraButton: "absolute left-0 top-0 text-center text-2xl text-[#9aa4b2]",
+  cameraButtonActive: "absolute left-0 top-0 text-center text-2xl text-[#f5f7fa]",
+
 } as const;
 
 /** 电量条填充色（返回完整字面量；分段阈值与参考一致）。 */
