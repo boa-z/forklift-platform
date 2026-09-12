@@ -13,6 +13,7 @@ pub enum FaultSeverity {
 }
 
 impl FaultSeverity {
+    /// 由线格式值还原故障级别。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::Info),
@@ -25,6 +26,7 @@ impl FaultSeverity {
         }
     }
 
+    /// 故障级别的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
@@ -49,6 +51,7 @@ pub struct Fault {
 }
 
 impl Fault {
+    /// 首次产生一条 active 故障。
     pub fn new(id: u32, severity: FaultSeverity, now_ms: u64) -> Self {
         Self {
             id,
@@ -60,6 +63,7 @@ impl Fault {
         }
     }
 
+    /// 序列化一条故障记录。
     pub fn encode(&self, writer: &mut Writer) {
         writer.put_u32(self.id);
         writer.put_u8(self.severity.as_u8());
@@ -69,6 +73,7 @@ impl Fault {
         writer.put_u32(self.occurrence_count);
     }
 
+    /// 反序列化一条故障记录。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         Ok(Self {
             id: reader.u32()?,
@@ -88,10 +93,12 @@ pub struct FaultSnapshot {
 }
 
 impl FaultSnapshot {
+    /// 当前 active 故障条数。
     pub fn active_count(&self) -> usize {
         self.faults.iter().filter(|fault| fault.active).count()
     }
 
+    /// 序列化故障快照（条数上限 64）。
     pub fn encode(&self, writer: &mut Writer) {
         writer.put_u64(self.timestamp_ms);
         let count = self.faults.len().min(MAX_FAULTS);
@@ -101,6 +108,7 @@ impl FaultSnapshot {
         }
     }
 
+    /// 反序列化故障快照。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         let timestamp_ms = reader.u64()?;
         let count = reader.u16()? as usize;
@@ -129,12 +137,14 @@ pub struct ConnectivityEvent {
 }
 
 impl ConnectivityEvent {
+    /// 序列化连接性事件。
     pub fn encode(&self, writer: &mut Writer) {
         writer.put_u64(self.timestamp_ms);
         writer.put_bool(self.can_online);
         writer.put_bool(self.camera_online);
     }
 
+    /// 反序列化连接性事件。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         Ok(Self {
             timestamp_ms: reader.u64()?,
@@ -153,6 +163,7 @@ pub enum HealthState {
 }
 
 impl HealthState {
+    /// 由线格式值还原健康状态。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::Healthy),
@@ -166,6 +177,7 @@ impl HealthState {
         }
     }
 
+    /// 健康状态的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
@@ -183,6 +195,7 @@ pub struct SystemState {
 }
 
 impl Default for SystemState {
+    /// 默认系统状态：未知健康、零遥测。
     fn default() -> Self {
         Self {
             timestamp_ms: 0,
@@ -195,6 +208,7 @@ impl Default for SystemState {
 }
 
 impl SystemState {
+    /// 序列化系统状态。
     pub fn encode(&self, writer: &mut Writer) {
         writer.put_u64(self.timestamp_ms);
         writer.put_u64(self.uptime_ms);
@@ -205,6 +219,7 @@ impl SystemState {
         writer.put_u32(self.mem_available_kb);
     }
 
+    /// 反序列化系统状态。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         let timestamp_ms = reader.u64()?;
         let uptime_ms = reader.u64()?;

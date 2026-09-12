@@ -5,6 +5,7 @@ use protocol::{
     SignalQuality, SoundId, VehicleState, HEADER_SIZE, MAGIC, MAX_PAYLOAD, VERSION,
 };
 
+/// 构造包含典型取值的车辆状态。
 fn sample_state() -> VehicleState {
     let mut state = VehicleState::unavailable(0);
     state.motion.speed_kph = Signal::new(12.5, 1_000);
@@ -21,6 +22,7 @@ fn sample_state() -> VehicleState {
     state
 }
 
+/// 车辆状态编解码应完全还原。
 #[test]
 fn vehicle_state_round_trip() {
     let state = sample_state();
@@ -33,6 +35,7 @@ fn vehicle_state_round_trip() {
     assert_eq!(message, Message::VehicleState(Box::new(state)));
 }
 
+/// 故障快照编解码应完全还原。
 #[test]
 fn fault_snapshot_round_trip() {
     let snapshot = FaultSnapshot {
@@ -47,6 +50,7 @@ fn fault_snapshot_round_trip() {
     assert_eq!(message, Message::Faults(snapshot));
 }
 
+/// 命令类消息（音效/音量/亮度/PING）编解码应完全还原。
 #[test]
 fn command_messages_round_trip() {
     for message in [
@@ -61,6 +65,7 @@ fn command_messages_round_trip() {
     }
 }
 
+/// 金样：PING 帧头与载荷必须为约定的小端字节。
 #[test]
 fn golden_ping_header_is_little_endian() {
     let frame = encode(0x1122_3344, &Message::Ping(0x0102_0304));
@@ -72,6 +77,7 @@ fn golden_ping_header_is_little_endian() {
     assert_eq!(&frame[16..20], &0x0102_0304u32.to_le_bytes());
 }
 
+/// magic 错误必须被拒绝。
 #[test]
 fn header_rejects_bad_magic() {
     let mut frame = encode(1, &Message::Ok);
@@ -79,6 +85,7 @@ fn header_rejects_bad_magic() {
     assert!(matches!(decode(&frame), Err(protocol::ProtocolError::BadMagic { .. })));
 }
 
+/// 协议版本不支持必须被拒绝。
 #[test]
 fn header_rejects_unknown_version() {
     let mut frame = encode(1, &Message::Ok);
@@ -89,6 +96,7 @@ fn header_rejects_unknown_version() {
     ));
 }
 
+/// 载荷超过 64 KiB 上限必须被拒绝。
 #[test]
 fn header_rejects_oversized_payload() {
     let mut frame = encode(1, &Message::Ok);
@@ -100,6 +108,7 @@ fn header_rejects_oversized_payload() {
     ));
 }
 
+/// 帧头不足 16 字节必须被拒绝。
 #[test]
 fn header_rejects_truncated_frame() {
     let frame = encode(1, &Message::Ok);
@@ -109,6 +118,7 @@ fn header_rejects_truncated_frame() {
     ));
 }
 
+/// 未知消息类型必须被拒绝。
 #[test]
 fn decode_rejects_unknown_message_type() {
     let mut frame = encode(1, &Message::Ok);
@@ -119,6 +129,7 @@ fn decode_rejects_unknown_message_type() {
     ));
 }
 
+/// 帧头长度与实际载荷不一致必须被拒绝。
 #[test]
 fn decode_rejects_length_mismatch() {
     let mut frame = encode(1, &Message::Ping(1));
@@ -129,6 +140,7 @@ fn decode_rejects_length_mismatch() {
     ));
 }
 
+/// 超时后信号质量降级为 Stale，值保留。
 #[test]
 fn signal_evaluates_to_stale_after_timeout() {
     let mut signal = Signal::new(10.0f32, 1_000);
@@ -138,6 +150,7 @@ fn signal_evaluates_to_stale_after_timeout() {
     assert_eq!(signal.value, 10.0);
 }
 
+/// Unavailable 信号不因超时被改写。
 #[test]
 fn unavailable_signal_stays_unavailable() {
     let mut signal = Signal::<f32>::unavailable();

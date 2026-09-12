@@ -14,6 +14,7 @@ pub enum SignalQuality {
 }
 
 impl SignalQuality {
+    /// 由线格式值还原信号质量。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::Valid),
@@ -27,52 +28,61 @@ impl SignalQuality {
         }
     }
 
+    /// 信号质量的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
 }
 
-/// Values that can travel inside a `Signal<T>`.
+/// 可放入 `Signal<T>` 的类型。
 pub trait WireValue: Copy + Default {
     fn wire_encode(&self, writer: &mut Writer);
     fn wire_decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError>;
 }
 
 impl WireValue for f32 {
+    /// 写入 f32。
     fn wire_encode(&self, writer: &mut Writer) {
         writer.put_f32(*self);
     }
 
+    /// 读取 f32。
     fn wire_decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         reader.f32()
     }
 }
 
 impl WireValue for bool {
+    /// 写入布尔值。
     fn wire_encode(&self, writer: &mut Writer) {
         writer.put_bool(*self);
     }
 
+    /// 读取布尔值。
     fn wire_decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         reader.bool()
     }
 }
 
 impl WireValue for Direction {
+    /// 写入方向枚举。
     fn wire_encode(&self, writer: &mut Writer) {
         writer.put_u8(self.as_u8());
     }
 
+    /// 读取方向枚举。
     fn wire_decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         Direction::from_u8(reader.u8()?)
     }
 }
 
 impl WireValue for RunMode {
+    /// 写入运行模式枚举。
     fn wire_encode(&self, writer: &mut Writer) {
         writer.put_u8(self.as_u8());
     }
 
+    /// 读取运行模式枚举。
     fn wire_decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         RunMode::from_u8(reader.u8()?)
     }
@@ -88,6 +98,7 @@ pub struct Signal<T: WireValue> {
 }
 
 impl<T: WireValue> Signal<T> {
+    /// 用给定值与时间戳构造 Valid 信号。
     pub fn new(value: T, timestamp_ms: u64) -> Self {
         Self {
             value,
@@ -96,6 +107,7 @@ impl<T: WireValue> Signal<T> {
         }
     }
 
+    /// 构造 Unavailable 信号（值为类型默认值）。
     pub fn unavailable() -> Self {
         Self {
             value: T::default(),
@@ -104,11 +116,13 @@ impl<T: WireValue> Signal<T> {
         }
     }
 
+    /// 距上次更新的毫秒数。
     pub fn age_ms(&self, now_ms: u64) -> u64 {
         now_ms.saturating_sub(self.timestamp_ms)
     }
 
     /// Marks the signal stale after `timeout_ms` without an update.
+    /// 超过超时阈值时把质量降级为 Stale，并返回当前质量。
     pub fn evaluate(&mut self, now_ms: u64, timeout_ms: u64) -> SignalQuality {
         if self.quality == SignalQuality::Unavailable {
             return self.quality;
@@ -119,12 +133,14 @@ impl<T: WireValue> Signal<T> {
         self.quality
     }
 
+    /// 序列化信号（值 + 时间戳 + 质量）。
     pub fn encode(&self, writer: &mut Writer) {
         self.value.wire_encode(writer);
         writer.put_u64(self.timestamp_ms);
         writer.put_u8(self.quality.as_u8());
     }
 
+    /// 反序列化信号。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         let value = T::wire_decode(reader)?;
         let timestamp_ms = reader.u64()?;
@@ -146,6 +162,7 @@ pub enum Direction {
 }
 
 impl Direction {
+    /// 由线格式值还原方向。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::Neutral),
@@ -158,12 +175,13 @@ impl Direction {
         }
     }
 
+    /// 方向的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
 }
 
-/// Reference run modes: 无 / S / E / P.
+/// 参考运行模式：无 / S / E / P。
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum RunMode {
     #[default]
@@ -174,6 +192,7 @@ pub enum RunMode {
 }
 
 impl RunMode {
+    /// 由线格式值还原运行模式。
     pub fn from_u8(value: u8) -> Result<Self, ProtocolError> {
         match value {
             0 => Ok(Self::None),
@@ -187,6 +206,7 @@ impl RunMode {
         }
     }
 
+    /// 运行模式的线格式值。
     pub fn as_u8(self) -> u8 {
         self as u8
     }
@@ -254,6 +274,7 @@ pub struct VehicleState {
 
 impl VehicleState {
     /// A fully `Unavailable` state, used before the first backend sample.
+    /// 构造全 Unavailable 的初始状态（首个采样之前）。
     pub fn unavailable(timestamp_ms: u64) -> Self {
         Self {
             timestamp_ms,
@@ -294,6 +315,7 @@ impl VehicleState {
     }
 
     /// Marks aged signals stale; called once per daemon tick.
+    /// 统一执行超时判定；每个 daemon tick 调用一次。
     pub fn evaluate_timeouts(&mut self, now_ms: u64, timeout_ms: u64) {
         self.timestamp_ms = now_ms;
         self.motion.speed_kph.evaluate(now_ms, timeout_ms);
@@ -314,6 +336,7 @@ impl VehicleState {
         self.vehicle.work_hours.evaluate(now_ms, timeout_ms);
     }
 
+    /// 按固定顺序序列化全部状态字段。
     pub fn encode(&self, writer: &mut Writer) {
         writer.put_u64(self.timestamp_ms);
         self.motion.speed_kph.encode(writer);
@@ -339,6 +362,7 @@ impl VehicleState {
         }
     }
 
+    /// 按与 `encode` 相同的顺序反序列化。
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self, ProtocolError> {
         let timestamp_ms = reader.u64()?;
         let speed_kph = Signal::decode(reader)?;
