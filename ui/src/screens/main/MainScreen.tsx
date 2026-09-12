@@ -8,9 +8,10 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import type { FaultSnapshot, Platform, VehicleState } from "../../platform";
 import { playButton } from "../../platform/feedback";
 import BottomNav from "../../components/BottomNav";
+import DigitNumber from "../../components/DigitNumber";
 import ScreenBackground from "../../components/ScreenBackground";
 import type { TabId } from "../../nav/nav";
-import { CLASS, SCREEN_CLASS, socFillClass, speedClass } from "../../theme/theme";
+import { CLASS, SCREEN_CLASS, socFillClass, speedDigitSet } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "./assets.gen";
 import {
   formatClock,
@@ -168,10 +169,8 @@ export default function MainScreen(props: { platform: Platform; onNavigate: (tab
         <Image src={BAKED.camera_1.src} class="absolute left-0 top-0" style={imageBox("camera_1", 0, 0)} />
       </View>
 
-      {/* 车速 */}
-      <Text class={speedClass(state()?.speedKph.quality)} style={{ translateX: SPEED.value.x, translateY: SPEED.value.y, width: SPEED.value.w, height: SPEED.value.h }}>
-        {formatSpeed(state()?.speedKph)}
-      </Text>
+      {/* 车速（54px 数字贴图，颜色随信号质量） */}
+      <DigitNumber text={formatSpeed(state()?.speedKph)} set={speedDigitSet(state()?.speedKph.quality)} x={SPEED.value.x} y={SPEED.value.y} w={SPEED.value.w} h={SPEED.value.h} align="right" />
       <Text class={CLASS.speedUnit} style={{ translateX: SPEED.unit.x, translateY: SPEED.unit.y, width: SPEED.unit.w, height: SPEED.unit.h }}>
         km/h
       </Text>
@@ -180,9 +179,7 @@ export default function MainScreen(props: { platform: Platform; onNavigate: (tab
       <Text class={CLASS.socLabel} style={{ translateX: SOC.label.x, translateY: SOC.label.y, width: SOC.label.w, height: SOC.label.h }}>
         soc
       </Text>
-      <Text class={CLASS.socValue} style={{ translateX: SOC.value.x, translateY: SOC.value.y, width: SOC.value.w, height: SOC.value.h }}>
-        {formatSoc(state()?.socPercent)}
-      </Text>
+      <DigitNumber text={formatSoc(state()?.socPercent)} set="soc36" x={SOC.value.x} y={SOC.value.y} w={SOC.value.w} h={SOC.value.h} align="right" />
       <Image src={BAKED.soc_track_t0.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: BAKED.soc_track_t0.w, height: BAKED.soc_track_t0.h }} />
       <Image src={BAKED.soc_track_t1.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x + 512, translateY: SOC.bar.y, width: BAKED.soc_track_t1.w, height: BAKED.soc_track_t1.h }} />
       <For each={Array.from({ length: socShape().full }, (_, index) => index)}>

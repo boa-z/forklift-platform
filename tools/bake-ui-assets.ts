@@ -118,7 +118,7 @@ function padToPow2(image: { width: number; height: number; rgba: Uint8Array }): 
 }
 
 const sources: string[] = [];
-for (const dir of ["src", "status", "error", "selfCheck", "menu", "digits", "charging"]) {
+for (const dir of ["src", "status", "error", "selfCheck", "menu", "digits", "charging", "numbers"]) {
   const base = join(root, "ui/assets/reference", dir);
   for (const name of readdirSync(base).filter((n) => n.endsWith(".png"))) {
     sources.push(join(base, name));
@@ -138,14 +138,13 @@ interface Crop {
 }
 
 const crops: readonly Crop[] = [
-  // 背景图只有底部导航条带与返回按钮区域有内容；其余像素为基色 #080304
-  // （由屏幕底色绘制）。条带 70 高，左右两片。
-  { name: "main_nav", path: "bg/main_bg.png", x: 0, y: 410, w: 512, h: 70 },
-  { name: "main_nav_r", path: "bg/main_bg.png", x: 512, y: 410, w: 288, h: 70 },
-  { name: "fault_nav", path: "bg/001bg.png", x: 0, y: 410, w: 512, h: 70 },
-  { name: "fault_nav_r", path: "bg/001bg.png", x: 512, y: 410, w: 288, h: 70 },
-  { name: "menu_nav", path: "bg/000_menu_bg.png", x: 0, y: 410, w: 512, h: 70 },
-  { name: "menu_nav_r", path: "bg/000_menu_bg.png", x: 512, y: 410, w: 288, h: 70 },
+  // 背景图只有底部导航条有内容；其余像素为基色 #080304（由屏幕底色绘制）。
+  // 四格基本一致（跨背景校验：仅 main 的 set 格与 fault 格不同），因此只烘焙
+  // 每屏一格（202×68，含右侧间隙），四个槽位复用，节省 ~1MB 纹理内存。
+  { name: "nav_cell_main", path: "bg/main_bg.png", x: 0, y: 410, w: 202, h: 68 },
+  { name: "nav_cell_main_set", path: "bg/main_bg.png", x: 602, y: 410, w: 198, h: 68 },
+  { name: "nav_cell_fault", path: "bg/001bg.png", x: 0, y: 410, w: 202, h: 68 },
+  { name: "nav_cell_menu", path: "bg/000_menu_bg.png", x: 0, y: 410, w: 202, h: 68 },
   // 自检进度条：629×27，左 512 + 右 117；绿色填充用 16/8/4/2/1 均匀切片
   // 精确拼出任意宽度（切片取自条带中段，像素与原始一致）。
   { name: "progress_grey_t0", path: "progress/006ProgressGrey.png", x: 0, y: 0, w: 512, h: 27 },
@@ -155,6 +154,12 @@ const crops: readonly Crop[] = [
   { name: "progress_green_slice4", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 4, h: 27 },
   { name: "progress_green_slice2", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 2, h: 27 },
   { name: "progress_green_slice1", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 1, h: 27 },
+  // 滑条：441×33 轨道/填充整图；绿色填充取 16/8/4/2/1 均匀切片精确拼宽。
+  { name: "slider_green_slice16", path: "menu/bargreen_441x33.png", x: 200, y: 0, w: 16, h: 33 },
+  { name: "slider_green_slice8", path: "menu/bargreen_441x33.png", x: 200, y: 0, w: 8, h: 33 },
+  { name: "slider_green_slice4", path: "menu/bargreen_441x33.png", x: 200, y: 0, w: 4, h: 33 },
+  { name: "slider_green_slice2", path: "menu/bargreen_441x33.png", x: 200, y: 0, w: 2, h: 33 },
+  { name: "slider_green_slice1", path: "menu/bargreen_441x33.png", x: 200, y: 0, w: 1, h: 33 },
   // 电量条：662×26 轨道两片；三段颜色各取一个分段。
   { name: "soc_track_t0", path: "src/soc_0.png", x: 0, y: 0, w: 512, h: 26 },
   { name: "soc_track_t1", path: "src/soc_0.png", x: 512, y: 0, w: 150, h: 26 },

@@ -1,9 +1,9 @@
 // i18n 与监控菜单树测试：数据来自 data.bin 的生成文件。
 // 这些断言同时校验生成器（tools/gen-i18n.ts）与参考 bin 的对应关系。
 
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
-import { faultText, t, tIndex } from "../src/i18n";
+import { currentLanguage, faultText, setLanguage, t, tIndex } from "../src/i18n";
 import { MONITOR_TREE } from "../src/screens/monitor/menu.gen";
 import { clampMonitorPage, monitorPageCount } from "../src/screens/monitor/tree";
 import { ZH_STRINGS } from "../src/i18n/strings.gen";
@@ -18,6 +18,19 @@ describe("i18n（data.bin 语言表）", () => {
     expect(t("JCLIB_LAN_USER_SETTINGS")).toBe("用户设置");
     expect(tIndex(9999)).toBe("");
   });
+
+  test("运行时切换 zh/en，文案随语言表变化", () => {
+    expect(currentLanguage()).toBe("zh");
+    expect(t("JCLIB_LAN_FAULT_DIAGNOSIS")).toBe("故障诊断");
+    setLanguage("en");
+    expect(currentLanguage()).toBe("en");
+    expect(t("JCLIB_LAN_FAULT_DIAGNOSIS")).toBe("Disorder diagnosis");
+    expect(tIndex(1)).toBe("English");
+    setLanguage("zh");
+    expect(t("JCLIB_LAN_FAULT_DIAGNOSIS")).toBe("故障诊断");
+  });
+
+  afterEach(() => setLanguage("zh"));
 
   test("故障码映射到参考故障表文案", () => {
     expect(faultText(0x19)).toBe("控制器低温警告");

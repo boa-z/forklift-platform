@@ -67,6 +67,19 @@ export const SET_MENUS: readonly SetMenu[] = [
   },
 ];
 
+/** 设置子对话框布局（相对内容区 520×270）。 */
+export const SET_DIALOG = {
+  /** 语言项：2 列 × 5 行，条目 186×44。 */
+  languageItem: { w: 186, h: 44, x: 5, y: 4, colStep: 255, rowStep: 50, labelX: 25, labelY: 14, checkX: 135, checkY: 7 },
+  /** 亮度/音量滑条（参考 441×33，位于 (10,39)）。 */
+  slider: { x: 10, y: 39, w: 441, h: 33 },
+  /** 百分比标签（滑条下方）。 */
+  valueLabel: { x: 341, y: 82, w: 110, h: 32 },
+  /** 初始亮度/音量（设置持久化随 M3 的设置存储）。 */
+  initialBrightness: 70,
+  initialVolume: 70,
+} as const;
+
 /** 夹取页码到菜单有效范围。 */
 export function clampMenuPage(page: number, pages: number): number {
   return Math.min(Math.max(page, 0), Math.max(0, pages - 1));

@@ -114,6 +114,24 @@ writeFileSync(
     `export const ZH_STRINGS: readonly string[] = ${ts(zh.strings)};\n`,
 );
 
+// strings.en.gen.ts：英文表（运行时可切换）。
+// 以 base64(JSON) 存储：字体烘焙按源码字面量收集字形，直接写字符串会把
+// 英文表里的非 ASCII 条目（未翻译回退）带进字库（实测 +218 字形、+1.5MB
+// 显存/包体，64MB 设备 OOM）。运行时解码；含非 ASCII 的条目在 i18n 层回退
+// 到 zh 表（其字形必然已烘焙），保证不出现豆腐块。
+const enIndex = config.languageCode.indexOf("en");
+if (enIndex >= 0) {
+  const en = parseLanguageBank(bytes, config, enIndex);
+  const encoded = Buffer.from(JSON.stringify(en.strings), "utf8").toString("base64");
+  writeFileSync(
+    join(root, "ui/src/i18n/strings.en.gen.ts"),
+    `${header("data/bin/data.bin 语言表（en，base64 存储）", config.crc16)}` +
+      `import { decodeStrings } from "./decode";\n\n` +
+      `/** en 语言表（base64(JSON)，下标与 zh 表一一对应）。 */\n` +
+      `export const EN_STRINGS: readonly string[] = decodeStrings(${JSON.stringify(encoded)});\n`,
+  );
+}
+
 // fault.gen.ts：故障码 -> 语言表下标（参考故障表；重复码取首次出现）。
 const faultIndex = new Map<number, number>();
 for (const entry of parseFaultKeys()) {

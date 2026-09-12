@@ -47,7 +47,8 @@ export default function ChargingScreen(props: { platform: Platform }) {
     for (const char of socText()) {
       const asset = digitAsset(char);
       if (asset === null) continue;
-      visible.push({ asset, w: BAKED[asset].w, h: BAKED[asset].h });
+      // 推进用内容宽度（cw），渲染尺寸用补齐后的 w/h。
+      visible.push({ asset, w: BAKED[asset].cw, h: BAKED[asset].ch });
     }
     if (visible.length === 0) return [];
     const total = visible.reduce((sum, entry) => sum + entry.w, 0) + CHARGING.digitGap * (visible.length - 1);

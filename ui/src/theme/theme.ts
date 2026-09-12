@@ -17,12 +17,8 @@ export const TITLE_CLASS = "absolute left-0 top-0 text-2xl text-[#f5f7fa]";
 /** 主屏文字 class（字号使用受支持的字库槽位）。 */
 export const CLASS = {
   clock: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
-  speedNormal: "absolute left-0 top-0 text-right text-5xl text-[#f5f7fa] font-bold",
-  speedWarning: "absolute left-0 top-0 text-right text-5xl text-[#f59e0b] font-bold",
-  speedCritical: "absolute left-0 top-0 text-right text-5xl text-[#ef4444] font-bold",
   speedUnit: "absolute left-0 top-0 text-2xl text-[#9aa4b2]",
   socLabel: "absolute left-0 top-0 text-lg text-[#9aa4b2]",
-  socValue: "absolute left-0 top-0 text-right text-4xl text-[#f5f7fa] font-bold",
   counter: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
   counterLabel: "absolute left-0 top-0 text-xs text-[#9aa4b2]",
   steerValue: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
@@ -36,6 +32,9 @@ export const CLASS = {
   progressLabel: "absolute left-0 top-0 text-right text-base text-[#b3b2b3]",
   enterButtonText: "absolute left-0 top-0 text-center text-xl text-[#f5f7fa]",
   chargingStatus: "absolute left-0 top-0 text-center text-xl text-[#fcfcfc]",
+  dialogLabel: "absolute left-0 top-0 text-base text-[#f5f7fa]",
+  dialogLabelDisabled: "absolute left-0 top-0 text-base text-[#7c7c7c]",
+  dialogValue: "absolute left-0 top-0 text-right text-xl text-[#f5f7fa]",
 } as const;
 
 /** 电量条填充色（返回完整字面量；分段阈值与参考一致）。 */
@@ -47,14 +46,14 @@ export function socFillClass(signal: Signal<number> | undefined): string {
   return "absolute left-0 top-0 rounded-[6] bg-[#595757]";
 }
 
-/** 速度值颜色随信号质量切换（返回完整字面量）。 */
-export function speedClass(quality: SignalQuality | undefined): string {
+/** 速度数字贴图集合随信号质量切换。 */
+export function speedDigitSet(quality: SignalQuality | undefined): "speed54" | "speed54w" | "speed54c" {
   switch (quality) {
     case "valid":
-      return CLASS.speedNormal;
+      return "speed54";
     case "stale":
-      return CLASS.speedWarning;
+      return "speed54w";
     default:
-      return CLASS.speedCritical;
+      return "speed54c";
   }
 }

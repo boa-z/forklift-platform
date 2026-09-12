@@ -11,7 +11,7 @@
 | 开机自检 | `LvglSelfCheckScreen.c` | 已实现 | `VehicleState`（6 项接入检查） |
 | 故障诊断 | `LvglFaultScreen.c` | 已实现 | `platform.faults` |
 | 监控 / CAN 数据页 | `LvglMonitorScreen.c` | 菜单树与分页已实现 | 树来自 `data.bin`；SDO 值待 M3 |
-| 设置 | `LvglSetScreen.c` | 一级菜单与分页已实现 | 语言键（`data.bin`）；子对话框待实现 |
+| 设置 | `LvglSetScreen.c` | 一级菜单、分页与三个子对话框已实现 | 语言键（`data.bin`）；语言/亮度/音量 |
 | 充电 | `LvglChargingScreen.c` | 已实现 | `VehicleState.battery.charging`（v2 协议） |
 | 密码 | `LvglPasswordScreen.c` | 待实现 | 本地校验 |
 | 移除提示（防拆卸） | `LvglRemovalScreen.c` | 已实现 | `VehicleState.io.anti_dismantle`（v3 协议） |
@@ -44,6 +44,15 @@
   8888 纹理下 64 MB 内存只放得下单帧；帧动画随 M3 的内存/纹理格式结论补齐。
   另：`u8` 数字字高 90px 超过 PocketJS 字号上限，使用 MiSans 90px 数字贴图。
 - 防拆卸遮挡只按 `anti_dismantle` 显示：设置项（防拆除使能）的持久化随设置子页实现。
+- 设置子对话框：**语言选择**支持 zh/en 运行时切换（其余 8 种语言在对话框中置灰：
+  字体子集/阿拉伯语整形未就绪），**亮度/音量**经平台命令下发（`system.setBrightness`、
+  `audio.setVolume`）；初始值 70% 为本地默认，设置持久化随 M3 的 daemon 设置存储。
+- 语言切换只影响当前会话（重启回 zh）：持久化同上。
+- 底栏格子贴图按屏复用（四格像素校验一致，仅 main 的 set 格与 fault 格单独烘焙），
+  替代整条 512×128 条带，省 ~1MB 纹理内存（64MB 设备的 OOM 临界）。
+- 内存基线：pak 5.4MB（字库 5 档）稳定运行；实测 pak ≥ 8MB 时启动即被 OOM 杀死。
+- 纹理格式实测补充：`PSM 4444` 除色带外**渲染也明显变慢**（62 个 4444 贴图的界面
+  掉到 ~15fps），产品统一使用 8888。
 - 开机 Logo 屏暂缓：`logo/logo.jpg` 内容 792×291，按 512 纹理上限需两片 512×512；
   实测 pak 超过约 9 MB 时设备 OOM（10.5MB 启动即被杀死），待 M3 的内存/纹理方案。
 - 纹理格式实测：`PSM 8888` 正常；`PSM 4444` 可用但渐变有明显色带（充电环保留 8888）；
@@ -62,6 +71,10 @@
 | 菜单项/数据行 | `002_menu_item*`、`004_menu_data_bg` | 整图烘焙 |
 | 充电圆环 | `charging/NN.jpg` 帧 | 取全部 50 帧的联合包围盒 (180,0)-(624,478) 裁切，单帧 512×512 纹理 |
 | 充电 SOC | MiSans 90px 数字 | 逐字贴图（PocketJS 字号上限 54px），工具 `tools/make-charging-assets.sh` |
+| 主屏车速 | MiSans Demibold 54px 数字（白/橙/红三套） | 逐字贴图（`tools/make-number-assets.sh`），替代 54px 字库槽（省 1.8MB） |
+| 主屏 SOC 值 | MiSans Demibold 36px（数字 + %） | 逐字贴图，替代 36px 字库槽（省 0.8MB） |
+| 亮度/音量滑条 | `bargray_441x33`、`bargreen_441x33`、`sliding_block_20x48` | 轨道/旋钮整图，绿色填充 16/8/4/2/1 切片拼宽 |
+| 语言选择项 | `checkboxbg_186x44`、`lauageset_null/ok` | 整图烘焙，2 列 × 5 行 |
 | 自检项/进入按钮 | `001GreyBoxBg`、`004GreenBoxBg`、`002yesPass/003noPass` | 整图烘焙 |
 
 **PocketJS 尺寸语义**：core 把整张（补齐到 2 的幂的）纹理缩放进节点框，

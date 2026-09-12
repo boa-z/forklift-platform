@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -45,12 +46,14 @@ static void touch_down(int fd, int count, int *xs, int *ys) {
   static unsigned int tracking_seq = 0;
   tracking_seq += 1;
   if (tracking_seq > 0x7fff) tracking_seq = 1;
-  unsigned int base_id = (unsigned int)time(0) % 100000 + tracking_seq;
-  // 内核按 slot 记录上一次的值并去抖；应用重启后记录仍在，因此每次注入
-  // 都要落在一个新坐标上。±4px 的分布覆盖连续点击且不影响命中判定。
-  int step = (int)(base_id % 9);
-  int jitter_x = step - 4;
-  int jitter_y = ((int)(base_id / 9) % 9) - 4;
+  // 抖动源用毫秒时钟：内核按 slot 去抖（相同值直接丢弃，且记录跨应用重启
+  // 保留），秒级时钟在同一脚本化序列里会重复。毫秒 + 序号保证每次不同。
+  struct timeval now;
+  gettimeofday(&now, 0);
+  unsigned long long stamp = (unsigned long long)now.tv_sec * 1000ULL + (unsigned long long)(now.tv_usec / 1000);
+  unsigned int base_id = (unsigned int)(stamp % 100000) + tracking_seq;
+  int jitter_x = (int)((stamp + tracking_seq * 7) % 9) - 4;
+  int jitter_y = (int)(((stamp / 9) + tracking_seq * 13) % 9) - 4;
   for (int i = 0; i < count; i++) {
     unsigned int id = base_id + (unsigned int)i;
     if (id == 0) id = 1;
@@ -168,6 +171,30 @@ int main(int argc, char **argv) {
     }
     touch_down(fd, count, xs, ys);
     touch_up(fd, count);
+  } else if (strcmp(mode, "drag") == 0) {
+    if (argc < 7) {
+      fprintf(stderr, "d211-touch: drag 需要 x1 y1 x2 y2 [steps]\n");
+      return 2;
+    }
+    int x1 = atoi(argv[3]);
+    int y1 = atoi(argv[4]);
+    int x2 = atoi(argv[5]);
+    int y2 = atoi(argv[6]);
+    int steps = argc >= 8 ? atoi(argv[7]) : 12;
+    if (steps < 2) steps = 2;
+    int xs[1] = {x1};
+    int ys[1] = {y1};
+    touch_down(fd, 1, xs, ys);
+    for (int step = 1; step <= steps; step++) {
+      int x = x1 + (x2 - x1) * step / steps;
+      int y = y1 + (y2 - y1) * step / steps;
+      emit(fd, EV_ABS, ABS_MT_SLOT, 0);
+      emit(fd, EV_ABS, ABS_MT_POSITION_X, x);
+      emit(fd, EV_ABS, ABS_MT_POSITION_Y, y);
+      sync_frame(fd);
+      sleep_ms(25);
+    }
+    touch_up(fd, 1);
   } else if (strcmp(mode, "abs") == 0) {
     if (argc != 5) {
       fprintf(stderr, "d211-touch: abs 需要 <code> <value>\n");

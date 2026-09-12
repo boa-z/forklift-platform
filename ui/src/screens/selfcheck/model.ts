@@ -52,26 +52,4 @@ export function allPassed(statuses: readonly CheckStatus[]): boolean {
   return statuses.length > 0 && statuses.every((status) => status === "pass");
 }
 
-/** 进度填充切片：用 16/8/4/2/1 的贴图切片精确拼出给定宽度。 */
-export interface FillSlice {
-  /** 切片宽度（对应 progress_green_slice{N} 贴图）。 */
-  size: number;
-  /** 相对进度条起点的 x 偏移。 */
-  x: number;
-}
-
-/** 计算填充切片序列（宽度为 0 时返回空数组）。 */
-export function fillSlices(width: number): FillSlice[] {
-  const sizes = [16, 8, 4, 2, 1];
-  const slices: FillSlice[] = [];
-  let x = 0;
-  let remaining = Math.max(0, Math.round(width));
-  for (const size of sizes) {
-    while (remaining >= size) {
-      slices.push({ size, x });
-      x += size;
-      remaining -= size;
-    }
-  }
-  return slices;
-}
+export { fillSlices, type FillSlice } from "../../components/slices";

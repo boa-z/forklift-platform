@@ -10,7 +10,8 @@
       "solid-js/*": ["../../pocketjs/node_modules/solid-js/*"],
       "@pocketjs/framework/components": ["./src/types/pocketjs.d.ts"],
       "@pocketjs/framework/lifecycle": ["./src/types/pocketjs.d.ts"],
-      "@pocketjs/framework/solid": ["./src/types/pocketjs.d.ts"]
+      "@pocketjs/framework/solid": ["./src/types/pocketjs.d.ts"],
+      "@pocketjs/framework/gesture": ["./src/types/pocketjs.d.ts"]
     }
   },
   "include": ["src", "app.tsx", "main.tsx", "tests"]
