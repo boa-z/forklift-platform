@@ -62,5 +62,509 @@
   {
     "key": "audio:wav.voice-14",
     "file": "assets/audio/voice-14.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-en",
+    "file": "assets/audio/voice-01-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-en",
+    "file": "assets/audio/voice-02-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-en",
+    "file": "assets/audio/voice-03-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-en",
+    "file": "assets/audio/voice-04-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-en",
+    "file": "assets/audio/voice-05-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-en",
+    "file": "assets/audio/voice-06-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-en",
+    "file": "assets/audio/voice-07-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-en",
+    "file": "assets/audio/voice-08-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-en",
+    "file": "assets/audio/voice-09-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-en",
+    "file": "assets/audio/voice-10-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-en",
+    "file": "assets/audio/voice-11-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-en",
+    "file": "assets/audio/voice-12-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-en",
+    "file": "assets/audio/voice-13-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-en",
+    "file": "assets/audio/voice-14-en.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-ru",
+    "file": "assets/audio/voice-01-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-ru",
+    "file": "assets/audio/voice-02-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-ru",
+    "file": "assets/audio/voice-03-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-ru",
+    "file": "assets/audio/voice-04-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-ru",
+    "file": "assets/audio/voice-05-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-ru",
+    "file": "assets/audio/voice-06-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-ru",
+    "file": "assets/audio/voice-07-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-ru",
+    "file": "assets/audio/voice-08-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-ru",
+    "file": "assets/audio/voice-09-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-ru",
+    "file": "assets/audio/voice-10-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-ru",
+    "file": "assets/audio/voice-11-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-ru",
+    "file": "assets/audio/voice-12-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-ru",
+    "file": "assets/audio/voice-13-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-ru",
+    "file": "assets/audio/voice-14-ru.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-fr",
+    "file": "assets/audio/voice-01-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-fr",
+    "file": "assets/audio/voice-02-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-fr",
+    "file": "assets/audio/voice-03-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-fr",
+    "file": "assets/audio/voice-04-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-fr",
+    "file": "assets/audio/voice-05-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-fr",
+    "file": "assets/audio/voice-06-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-fr",
+    "file": "assets/audio/voice-07-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-fr",
+    "file": "assets/audio/voice-08-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-fr",
+    "file": "assets/audio/voice-09-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-fr",
+    "file": "assets/audio/voice-10-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-fr",
+    "file": "assets/audio/voice-11-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-fr",
+    "file": "assets/audio/voice-12-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-fr",
+    "file": "assets/audio/voice-13-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-fr",
+    "file": "assets/audio/voice-14-fr.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-de",
+    "file": "assets/audio/voice-01-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-de",
+    "file": "assets/audio/voice-02-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-de",
+    "file": "assets/audio/voice-03-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-de",
+    "file": "assets/audio/voice-04-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-de",
+    "file": "assets/audio/voice-05-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-de",
+    "file": "assets/audio/voice-06-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-de",
+    "file": "assets/audio/voice-07-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-de",
+    "file": "assets/audio/voice-08-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-de",
+    "file": "assets/audio/voice-09-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-de",
+    "file": "assets/audio/voice-10-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-de",
+    "file": "assets/audio/voice-11-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-de",
+    "file": "assets/audio/voice-12-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-de",
+    "file": "assets/audio/voice-13-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-de",
+    "file": "assets/audio/voice-14-de.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-ko",
+    "file": "assets/audio/voice-01-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-ko",
+    "file": "assets/audio/voice-02-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-ko",
+    "file": "assets/audio/voice-03-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-ko",
+    "file": "assets/audio/voice-04-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-ko",
+    "file": "assets/audio/voice-05-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-ko",
+    "file": "assets/audio/voice-06-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-ko",
+    "file": "assets/audio/voice-07-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-ko",
+    "file": "assets/audio/voice-08-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-ko",
+    "file": "assets/audio/voice-09-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-ko",
+    "file": "assets/audio/voice-10-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-ko",
+    "file": "assets/audio/voice-11-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-ko",
+    "file": "assets/audio/voice-12-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-ko",
+    "file": "assets/audio/voice-13-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-ko",
+    "file": "assets/audio/voice-14-ko.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-pt",
+    "file": "assets/audio/voice-01-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-pt",
+    "file": "assets/audio/voice-02-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-pt",
+    "file": "assets/audio/voice-03-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-pt",
+    "file": "assets/audio/voice-04-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-pt",
+    "file": "assets/audio/voice-05-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-pt",
+    "file": "assets/audio/voice-06-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-pt",
+    "file": "assets/audio/voice-07-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-pt",
+    "file": "assets/audio/voice-08-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-pt",
+    "file": "assets/audio/voice-09-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-pt",
+    "file": "assets/audio/voice-10-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-pt",
+    "file": "assets/audio/voice-11-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-pt",
+    "file": "assets/audio/voice-12-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-pt",
+    "file": "assets/audio/voice-13-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-pt",
+    "file": "assets/audio/voice-14-pt.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-es",
+    "file": "assets/audio/voice-01-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-es",
+    "file": "assets/audio/voice-02-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-es",
+    "file": "assets/audio/voice-03-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-es",
+    "file": "assets/audio/voice-04-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-es",
+    "file": "assets/audio/voice-05-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-es",
+    "file": "assets/audio/voice-06-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-es",
+    "file": "assets/audio/voice-07-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-es",
+    "file": "assets/audio/voice-08-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-es",
+    "file": "assets/audio/voice-09-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-es",
+    "file": "assets/audio/voice-10-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-es",
+    "file": "assets/audio/voice-11-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-es",
+    "file": "assets/audio/voice-12-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-es",
+    "file": "assets/audio/voice-13-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-es",
+    "file": "assets/audio/voice-14-es.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-ar",
+    "file": "assets/audio/voice-01-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-ar",
+    "file": "assets/audio/voice-02-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-ar",
+    "file": "assets/audio/voice-03-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-ar",
+    "file": "assets/audio/voice-04-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-ar",
+    "file": "assets/audio/voice-05-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-ar",
+    "file": "assets/audio/voice-06-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-ar",
+    "file": "assets/audio/voice-07-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-ar",
+    "file": "assets/audio/voice-08-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-ar",
+    "file": "assets/audio/voice-09-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-ar",
+    "file": "assets/audio/voice-10-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-ar",
+    "file": "assets/audio/voice-11-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-ar",
+    "file": "assets/audio/voice-12-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-ar",
+    "file": "assets/audio/voice-13-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-ar",
+    "file": "assets/audio/voice-14-ar.wav"
+  },
+  {
+    "key": "audio:wav.voice-01-ja",
+    "file": "assets/audio/voice-01-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-02-ja",
+    "file": "assets/audio/voice-02-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-03-ja",
+    "file": "assets/audio/voice-03-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-04-ja",
+    "file": "assets/audio/voice-04-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-05-ja",
+    "file": "assets/audio/voice-05-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-06-ja",
+    "file": "assets/audio/voice-06-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-07-ja",
+    "file": "assets/audio/voice-07-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-08-ja",
+    "file": "assets/audio/voice-08-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-09-ja",
+    "file": "assets/audio/voice-09-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-10-ja",
+    "file": "assets/audio/voice-10-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-11-ja",
+    "file": "assets/audio/voice-11-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-12-ja",
+    "file": "assets/audio/voice-12-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-13-ja",
+    "file": "assets/audio/voice-13-ja.wav"
+  },
+  {
+    "key": "audio:wav.voice-14-ja",
+    "file": "assets/audio/voice-14-ja.wav"
   }
 ]

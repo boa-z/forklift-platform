@@ -48,6 +48,17 @@ for (const required of [
   }
 }
 
+// --- 预检 Solid 入口的 scheduler 修复（QuickJS 上握手依赖它） ---------------
+// 见 pocket-stack/pocketjs#414：缺少 setTimeout/clearTimeout polyfill 时
+// platform.connect() 在设备上静默失败，所有命令（含音频/亮度）被吞掉。
+const solidEntry = readFileSync(join(pocketjs, "framework/src/index.ts"), "utf8");
+if (!solidEntry.includes("scheduler-polyfill")) {
+  fail(
+    "PocketJS 检出的 Solid 入口缺少 scheduler polyfill（pocket-stack/pocketjs#414）；" +
+      "请先切到包含该提交的分支（本地集成用 tmp/d211-audio-valid，或 fix/solid-scheduler-globals）",
+  );
+}
+
 // --- 让 @pocketjs/framework/* 在应用侧始终可解析 ----------------------------
 // PocketJS 编译器插件会做别名；这里同时建立包链接作为兜底，避免不同 Bun
 // 版本的插件行为差异导致 “Could not resolve: @pocketjs/framework/...”。

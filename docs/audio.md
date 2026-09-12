@@ -22,6 +22,7 @@
 | — | 按钮音（`audio/btns.wav`） | 每次按键 | — |
 
 多语言文件名后缀：英/俄/法/德/韩/葡/西/阿/日；无后缀为中文。
+**全部 10 种语言已迁移**（14×10 = 140 段），文件名 `voice-XX-<lang>.wav`。
 
 ## 2. 产品实现
 
@@ -33,9 +34,13 @@
 - **语音控制器**（`ui/src/platform/voice.ts`）：单播放器；报警语音播放中丢弃
   新请求（参考 `ThreadPlayer_AudioPlay` 返回 -2 的语义），按钮/开机音可打断；
   语言后缀按当前界面语言选择，缺失回退中文。
-- **资产**：`tools/make-voice-assets.sh` 从参考工程复制 14 段中文语音并重采样
-  到 22050 Hz（参考为 24000，PocketJS 规范只允许 44.1/22.05/11.025k），
-  经 `ui/pak.json` 烘焙为 pak 的 `audio:wav.*` 原始块。
+- **资产**：`tools/make-voice-assets.sh` 迁移全部 10 种语言并重采样（参考为
+  24000 Hz，PocketJS 规范只允许 44.1/22.05/11.025k），随后重写 `ui/pak.json`
+  的 142 个 `audio:wav.*` 原始块（140 语音 + 开机音 + 按钮音）。
+  **采样率按设备存储分配**：中文与英文（界面可切换）22050 Hz；
+  其余 8 种语言 11025 Hz（完整覆盖，电话级语音质量）；开机音 44100→22050 Hz。
+  依据：设备 rootfs 54MB、全语言 24kHz 约 30MB；当前方案语音共 ~16MB，
+  全语言 pak 21.7MB，部署后 rootfs 仍剩 ~17MB。
 - **播放**：PocketJS 宿主 audio 模块（d211 用 `aplay -t raw` 子进程 + 设备时钟
   节拍）；宿主未挂载 audio 模块时静默降级（开发/模拟）。
 
@@ -56,6 +61,9 @@
 - 故障场景（mock faultId 4）：每 5 秒一次 4 号语音。
 - 倒车场景：1.8 秒循环（中文 05 号语音时长 1.82 秒）。
 - 亮度回归：设置滑条写 `/sys/class/backlight`。
+- 多语言：英文模式超速循环间隔 4.87s（= `voice-10-en` 时长，中文为 3.19s）；
+  强制俄语后缀时宿主日志出现 `createStream rate=11025`（`voice-10-ru` 加载成功）。
+- 存储：全语言 pak 21.7MB 部署后 `df` 显示 rootfs 使用 36.2MB / 剩余 17.7MB。
 
 宿主侧实现与修复（credit 合并上报、feeder 设备时钟节拍、aplay 150ms 缓冲）
 见 PocketJS `feat/d211-host-modules`（PR #417）。
