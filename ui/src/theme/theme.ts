@@ -35,6 +35,8 @@ export const CLASS = {
   dialogLabel: "absolute left-0 top-0 text-base text-[#f5f7fa]",
   dialogLabelDisabled: "absolute left-0 top-0 text-base text-[#7c7c7c]",
   dialogValue: "absolute left-0 top-0 text-right text-xl text-[#f5f7fa]",
+  passwordText: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
+  passwordKey: "absolute left-0 top-0 text-center text-2xl text-[#f5f7fa]",
 } as const;
 
 /** 电量条填充色（返回完整字面量；分段阈值与参考一致）。 */

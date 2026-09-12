@@ -7,6 +7,9 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 
 import BottomNav from "../../components/BottomNav";
 import ReturnButton from "../../components/ReturnButton";
+import PasswordScreen from "../password/PasswordScreen";
+import { checkPassword } from "../password/model";
+import { getAdminPassword, setAdminPassword } from "../../settings";
 import ScreenBackground from "../../components/ScreenBackground";
 import Slider from "../../components/Slider";
 import {
@@ -37,6 +40,9 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
   const [dialog, setDialog] = createSignal<DialogId>("none");
   const [brightness, setBrightness] = createSignal<number>(SET_DIALOG.initialBrightness);
   const [volume, setVolume] = createSignal<number>(SET_DIALOG.initialVolume);
+  // 密码屏：kind 标记用途；高级设置需要管理员/超级密码，设置管理员密码直接写入。
+  const [passwordKind, setPasswordKind] = createSignal<"advanced" | "admin" | null>(null);
+  const [adminAuthed, setAdminAuthed] = createSignal(false);
   // 语言切换后刷新本屏文案（其他屏在切入时重新挂载）。
   const [langVersion, setLangVersion] = createSignal(0);
 
@@ -67,12 +73,34 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     return pages[clampMenuPage(page(), pages.length)] ?? [];
   });
 
-  /** 选择左列菜单。 */
+  /** 选择左列菜单：高级设置需要密码。 */
   const selectMenu = (index: number): void => {
     playButton(props.platform);
+    if (index === 2 && !adminAuthed()) {
+      setPasswordKind("advanced");
+      return;
+    }
     setMenuIndex(index);
     setPage(0);
     setDialog("none");
+  };
+
+  /** 密码确认：高级设置放行 / 设置管理员密码。 */
+  const submitPassword = (value: string): boolean => {
+    const kind = passwordKind();
+    if (kind === "admin") {
+      if (value.length === 0) return false;
+      setAdminPassword(value);
+      setPasswordKind(null);
+      return true;
+    }
+    const role = checkPassword(value, getAdminPassword());
+    if (role === "none") return false;
+    setAdminAuthed(true);
+    setMenuIndex(2);
+    setPage(0);
+    setPasswordKind(null);
+    return true;
   };
 
   /** 翻页。 */
@@ -97,6 +125,7 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     if (key === "JCLIB_LAN_LANGUAGE_SELECT") setDialog("language");
     else if (key === "JCLIB_LAN_BRIGHTNESS_ADJUST") setDialog("brightness");
     else if (key === "JCLIB_LAN_VOLUME_ADJUST") setDialog("volume");
+    else if (key === "JCLIB_LAN_SET_ADMIN_PASSWORD") setPasswordKind("admin");
   };
 
   /** 对话框标题（参考：打开子页时标题变为子页名）。 */
@@ -145,7 +174,18 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
   const languageCodeAt = (index: number): LanguageCode | null =>
     SELECTABLE_LANGUAGES.find((entry) => entry.nameIndex === index)?.code ?? null;
 
+  // 密码屏为全屏界面（参考实现），覆盖设置屏；用 Show 保持响应式。
   return (
+    <Show
+      when={passwordKind() === null}
+      fallback={
+        <PasswordScreen
+          platform={props.platform}
+          onSubmit={submitPassword}
+          onCancel={() => setPasswordKind(null)}
+        />
+      }
+    >
     <View class={SCREEN_CLASS}>
       <ScreenBackground id="menu" />
       <ReturnButton onPress={back} />
@@ -261,5 +301,6 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
 
       <BottomNav active="set" onNavigate={props.onNavigate} onPress={() => playButton(props.platform)} />
     </View>
+    </Show>
   );
 }
