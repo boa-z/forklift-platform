@@ -9,6 +9,7 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { TabId } from "./src/nav/nav";
 import { createPlatform, MockTransport } from "./src/platform";
+import { createDeviceEffects } from "./src/platform/effects";
 import CameraScreen from "./src/screens/camera/CameraScreen";
 import FaultScreen from "./src/screens/fault/FaultScreen";
 import ChargingScreen from "./src/screens/charging/ChargingScreen";
@@ -19,7 +20,14 @@ import SetScreen from "./src/screens/set/SetScreen";
 
 /** 叉车仪表应用根组件。 */
 export default function ForkliftApp() {
-  const transport = new MockTransport();
+  const effects = createDeviceEffects();
+  const transport = new MockTransport({
+    effects: {
+      playSound: () => effects.playButton(),
+      setVolume: (volume) => effects.setVolume(volume),
+      setBrightness: (brightness) => effects.setBrightness(brightness),
+    },
+  });
   const platform = createPlatform(transport);
   const [booted, setBooted] = createSignal(false);
   const [tab, setTab] = createSignal<TabId>("home");
@@ -40,6 +48,7 @@ export default function ForkliftApp() {
 
   onFrame(() => {
     transport.tick();
+    effects.pump();
   });
 
   /** 页签路由。 */

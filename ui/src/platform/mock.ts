@@ -4,6 +4,16 @@
 import { PROTOCOL_VERSION, type ClientMessage, type ServerMessage, type VehicleState } from "./protocol";
 import type { Transport } from "./transport";
 
+/** 设备效果回调（Mock 在收到命令时调用；真机由宿主模块执行）。 */
+export interface MockEffects {
+  /** 播放提示音。 */
+  playSound?: (sound: string) => void;
+  /** 设置音量（0-100）。 */
+  setVolume?: (volume: number) => void;
+  /** 设置亮度（0-100）。 */
+  setBrightness?: (brightness: number) => void;
+}
+
 /** 纯内存传输实现。 */
 export class MockTransport implements Transport {
   private messageHandler: ((message: ServerMessage) => void) | undefined;
@@ -11,11 +21,13 @@ export class MockTransport implements Transport {
   private phase = 0;
   private charging: boolean;
   private antiDismantle: boolean;
+  private effects: MockEffects;
 
-  /** 可选注入充电/防拆卸状态；默认均为 false。 */
-  constructor(options: { charging?: boolean; antiDismantle?: boolean } = {}) {
+  /** 可选注入充电/防拆卸状态与设备效果回调；默认均为空。 */
+  constructor(options: { charging?: boolean; antiDismantle?: boolean; effects?: MockEffects } = {}) {
     this.charging = options.charging ?? false;
     this.antiDismantle = options.antiDismantle ?? false;
+    this.effects = options.effects ?? {};
   }
 
   /** 更新充电状态（开发/验收用）。 */
@@ -43,8 +55,15 @@ export class MockTransport implements Transport {
         this.messageHandler?.({ type: "serverVersion", version: PROTOCOL_VERSION });
         break;
       case "playSound":
+        this.effects.playSound?.(message.sound);
+        this.messageHandler?.({ type: "ok" });
+        break;
       case "setVolume":
+        this.effects.setVolume?.(message.volume);
+        this.messageHandler?.({ type: "ok" });
+        break;
       case "setBrightness":
+        this.effects.setBrightness?.(message.brightness);
         this.messageHandler?.({ type: "ok" });
         break;
     }

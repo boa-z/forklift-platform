@@ -50,9 +50,16 @@ POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts
 - 自动调用 `tools/bake-ui-assets.ts` 烘焙 2 的幂纹理（产物不入库）；
 - 打印 PocketJS 提交号，便于回执追溯。
 
-QuickJS 目标的 PocketJS 检出必须包含 pocket-stack/pocketjs#414 的修复
-（Solid 入口 scheduler globals）；在合入前使用 `fix/solid-scheduler-globals`
-分支（或任何包含该提交的检出），否则平台握手在设备上直接失败。
+QuickJS 目标的 PocketJS 检出必须包含（合入前用对应分支，或包含这些提交的检出）：
+
+| 依赖 | 内容 | 未合入前的分支 |
+| --- | --- | --- |
+| pocket-stack/pocketjs#414 | Solid 入口 scheduler globals（否则握手直接失败） | `fix/solid-scheduler-globals` |
+| pocket-stack/pocketjs#407 | d211-linux 宿主移植（触摸/帧缓冲） | `feat/d211-linux` |
+| pocket-stack/pocketjs#416 / #417 | quickjs-c 宿主模块钩子 + d211 音频/背光模块 | `feat/d211-host-modules`（含前两者） |
+
+设备构建（宿主 + UI）用 `feat/d211-host-modules` 检出可以一次满足三条；
+只构建 UI 时用 `tmp/d211-audio-valid`（本地临时合并分支）亦可。
 
 ## 4. 工作流
 

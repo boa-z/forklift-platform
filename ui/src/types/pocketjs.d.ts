@@ -75,3 +75,31 @@ declare module "@pocketjs/framework/gesture" {
   /** 安装手势识别器（Solid 作用域内自动清理）。 */
   export function createGesture(options: GestureOptions): GestureHandle;
 }
+
+declare module "@pocketjs/framework/audio" {
+  /** 解码后的 WAV PCM。 */
+  export interface WavPcm {
+    readonly sampleRate: number;
+    readonly channels: number;
+    readonly frames: number;
+  }
+  /** WAV 播放器（宿主无 audio 模块时为静默空操作）。 */
+  export interface WavPlayer {
+    /** 从 pak 装 `audio:wav.<name>`。 */
+    load(name: string): boolean;
+    loadPcm(pcm: WavPcm): boolean;
+    play(): void;
+    pause(): void;
+    toggle(): void;
+    stop(): void;
+    setVolume(volume: number): void;
+    /** 每帧调用：排空事件并喂环形缓冲。 */
+    pump(): void;
+    playing(): boolean;
+    dispose(): void;
+  }
+  /** 创建播放器。 */
+  export function createWavPlayer(): WavPlayer;
+  /** 解码 WAV 字节。 */
+  export function decodeWav(bytes: Uint8Array): WavPcm;
+}
