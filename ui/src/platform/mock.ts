@@ -1,17 +1,39 @@
 // 纯内存传输：固定值 + 轻微波动。不依赖任何宿主 API（QuickJS 无 setInterval，
 // 由宿主逐帧调用 tick() 驱动），供 UI 开发、单元测试与无 daemon 场景使用。
 
-import { PROTOCOL_VERSION, type ClientMessage, type ServerMessage, type VehicleState } from "./protocol";
+import {
+  PROTOCOL_VERSION,
+  type ClientMessage,
+  type Direction,
+  type Fault,
+  type ServerMessage,
+  type SoundId,
+  type VehicleState,
+} from "./protocol";
 import type { Transport } from "./transport";
 
 /** 设备效果回调（Mock 在收到命令时调用；真机由宿主模块执行）。 */
 export interface MockEffects {
-  /** 播放提示音。 */
-  playSound?: (sound: string) => void;
+  /** 播放提示音/语音。 */
+  playSound?: (sound: SoundId) => void;
   /** 设置音量（0-100）。 */
   setVolume?: (volume: number) => void;
   /** 设置亮度（0-100）。 */
   setBrightness?: (brightness: number) => void;
+}
+
+/** 验收场景：覆盖车速/方向/故障等固定值（报警语音的实机验证）。 */
+export interface MockScenario {
+  /** 固定车速（km/h）。 */
+  speedKph?: number;
+  /** 固定方向。 */
+  direction?: Direction;
+  /** 固定安全带状态。 */
+  seatbelt?: boolean;
+  /** 固定座椅开关状态。 */
+  seatSwitch?: boolean;
+  /** 活动故障编号（0 = 无故障）。 */
+  faultId?: number;
 }
 
 /** 纯内存传输实现。 */
@@ -22,12 +44,14 @@ export class MockTransport implements Transport {
   private charging: boolean;
   private antiDismantle: boolean;
   private effects: MockEffects;
+  private scenario: MockScenario;
 
-  /** 可选注入充电/防拆卸状态与设备效果回调；默认均为空。 */
-  constructor(options: { charging?: boolean; antiDismantle?: boolean; effects?: MockEffects } = {}) {
+  /** 可选注入充电/防拆卸状态、设备效果回调与验收场景；默认均为空。 */
+  constructor(options: { charging?: boolean; antiDismantle?: boolean; effects?: MockEffects; scenario?: MockScenario } = {}) {
     this.charging = options.charging ?? false;
     this.antiDismantle = options.antiDismantle ?? false;
     this.effects = options.effects ?? {};
+    this.scenario = options.scenario ?? {};
   }
 
   /** 更新充电状态（开发/验收用）。 */
@@ -106,7 +130,23 @@ export class MockTransport implements Transport {
       workHours: signal(56),
       controllerOnline: [true, true, false],
     };
+    if (this.scenario.speedKph !== undefined) state.speedKph = signal(this.scenario.speedKph);
+    if (this.scenario.direction !== undefined) state.direction = signal(this.scenario.direction);
+    if (this.scenario.seatbelt !== undefined) state.seatbelt = signal(this.scenario.seatbelt);
+    if (this.scenario.seatSwitch !== undefined) state.seatSwitch = signal(this.scenario.seatSwitch);
     this.messageHandler?.({ type: "vehicleState", state });
+    const faultId = this.scenario.faultId ?? 0;
+    if (faultId > 0) {
+      const fault: Fault = {
+        id: faultId,
+        severity: "warning",
+        active: true,
+        firstSeenMs: Date.now(),
+        lastSeenMs: Date.now(),
+        occurrenceCount: 1,
+      };
+      this.messageHandler?.({ type: "faults", snapshot: { timestampMs: Date.now(), faults: [fault] } });
+    }
   }
 }
 

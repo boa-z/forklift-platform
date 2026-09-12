@@ -30,6 +30,6 @@ pub use state::{
 
 /// `'F' 'L' 'K' 'T'` little-endian.
 pub const MAGIC: u32 = 0x544b_4c46;
-pub const VERSION: u16 = 3;
+pub const VERSION: u16 = 4;
 pub const MAX_PAYLOAD: usize = 64 * 1024;
 pub const HEADER_SIZE: usize = MessageHeader::SIZE;

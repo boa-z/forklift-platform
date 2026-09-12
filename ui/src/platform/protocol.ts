@@ -3,7 +3,7 @@
 // 各自手写协议常量。
 
 /** 支持的协议版本。 */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 /** 'F''L''K''T' 小端。 */
 export const PROTOCOL_MAGIC = 0x544b4c46;
 /** 帧头长度。 */
@@ -30,7 +30,24 @@ export type FaultSeverity = "info" | "warning" | "critical";
 /** 子系统健康状态。 */
 export type HealthState = "healthy" | "degraded" | "failed" | "unknown";
 /** 可播放音效。 */
-export type SoundId = "button" | "warning" | "reverse" | "fault" | "startup";
+export type SoundId =
+  | "button"
+  | "warning"
+  | "reverse"
+  | "fault"
+  | "startup"
+  | "cardSwipe"
+  | "cardOk"
+  | "cardFail"
+  | "overspeed"
+  | "overspeedHigh"
+  | "overspeedCritical"
+  | "seatbelt"
+  | "seatOff"
+  | "obstacleFar"
+  | "obstacleNear"
+  | "obstacleBrake"
+  | "collision";
 
 /** 车辆状态（UI 只读快照）。 */
 export interface VehicleState {
@@ -147,6 +164,18 @@ const SOUND_IDS: Record<SoundId, number> = {
   reverse: 2,
   fault: 3,
   startup: 4,
+  cardSwipe: 5,
+  cardOk: 6,
+  cardFail: 7,
+  overspeed: 8,
+  overspeedHigh: 9,
+  overspeedCritical: 10,
+  seatbelt: 11,
+  seatOff: 12,
+  obstacleFar: 13,
+  obstacleNear: 14,
+  obstacleBrake: 15,
+  collision: 16,
 };
 
 const DIRECTION_VALUES: Direction[] = ["neutral", "forward", "reverse"];

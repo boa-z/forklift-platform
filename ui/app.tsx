@@ -8,6 +8,7 @@ import { View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { TabId } from "./src/nav/nav";
+import { AlarmEngine, type AlarmInputs } from "./src/platform/alarms";
 import { createPlatform, MockTransport } from "./src/platform";
 import { createDeviceEffects } from "./src/platform/effects";
 import CameraScreen from "./src/screens/camera/CameraScreen";
@@ -23,7 +24,7 @@ export default function ForkliftApp() {
   const effects = createDeviceEffects();
   const transport = new MockTransport({
     effects: {
-      playSound: () => effects.playButton(),
+      playSound: (sound) => effects.playSound(sound),
       setVolume: (volume) => effects.setVolume(volume),
       setBrightness: (brightness) => effects.setBrightness(brightness),
     },
@@ -34,22 +35,66 @@ export default function ForkliftApp() {
   const [charging, setCharging] = createSignal(false);
   const [removed, setRemoved] = createSignal(false);
   const [cameraOpen, setCameraOpen] = createSignal(false);
+  // 报警引擎：订阅车辆/故障，逐帧（内部 50ms 补拍）生成语音请求。
+  const alarms = new AlarmEngine();
+  let alarmInputs: AlarmInputs = {
+    faultActive: false,
+    speedKph: undefined,
+    direction: undefined,
+    seatbelt: undefined,
+    seatSwitch: undefined,
+    parkingBrake: undefined,
+  };
+  let lastFrameMs = Date.now();
 
   onMount(() => {
     const unsubscribe = platform.vehicle.subscribe((state) => {
       setCharging(state.charging.quality === "valid" && state.charging.value);
       setRemoved(state.antiDismantle.quality === "valid" && state.antiDismantle.value);
+      alarmInputs = {
+        faultActive: alarmInputs.faultActive,
+        speedKph: state.speedKph.quality === "valid" ? state.speedKph.value : undefined,
+        direction: state.direction.quality === "valid" ? state.direction.value : undefined,
+        seatbelt: state.seatbelt.quality === "valid" ? state.seatbelt.value : undefined,
+        seatSwitch: state.seatSwitch.quality === "valid" ? state.seatSwitch.value : undefined,
+        parkingBrake: state.parkingBrake.quality === "valid" ? state.parkingBrake.value : undefined,
+      };
     });
-    onCleanup(unsubscribe);
-    platform.connect().catch((error: unknown) => {
-      console.warn(`forklift: 平台连接失败：${String(error)}`);
+    const unsubscribeFaults = platform.faults.subscribe((snapshot) => {
+      alarmInputs = {
+        ...alarmInputs,
+        faultActive: snapshot.faults.some((fault) => fault.active),
+      };
     });
+    onCleanup(() => {
+      unsubscribe();
+      unsubscribeFaults();
+    });
+    platform.connect()
+      .then(() => {
+        platform.audio.play("startup");
+      })
+      .catch((error: unknown) => {
+        console.warn(`forklift: 平台连接失败：${String(error)}`);
+      });
   });
 
   onFrame(() => {
     transport.tick();
+    const now = Date.now();
+    alarms.tick(now - lastFrameMs, alarmInputs, safePlay);
+    lastFrameMs = now;
     effects.pump();
   });
+
+  /** 报警/提示音播放：连接建立前忽略（回调异常会中断帧循环）。 */
+  const safePlay = (id: Parameters<typeof platform.audio.play>[0]): void => {
+    try {
+      platform.audio.play(id);
+    } catch {
+      // 连接建立前忽略。
+    }
+  };
 
   /** 页签路由。 */
   const navigate = (next: TabId): void => {

@@ -1,3 +1,66 @@
 [
-  { "key": "audio:wav.btn", "file": "assets/audio/btns.wav" }
+  {
+    "key": "audio:wav.btn",
+    "file": "assets/audio/btns.wav"
+  },
+  {
+    "key": "audio:wav.start",
+    "file": "assets/audio/start.wav"
+  },
+  {
+    "key": "audio:wav.voice-01",
+    "file": "assets/audio/voice-01.wav"
+  },
+  {
+    "key": "audio:wav.voice-02",
+    "file": "assets/audio/voice-02.wav"
+  },
+  {
+    "key": "audio:wav.voice-03",
+    "file": "assets/audio/voice-03.wav"
+  },
+  {
+    "key": "audio:wav.voice-04",
+    "file": "assets/audio/voice-04.wav"
+  },
+  {
+    "key": "audio:wav.voice-05",
+    "file": "assets/audio/voice-05.wav"
+  },
+  {
+    "key": "audio:wav.voice-06",
+    "file": "assets/audio/voice-06.wav"
+  },
+  {
+    "key": "audio:wav.voice-07",
+    "file": "assets/audio/voice-07.wav"
+  },
+  {
+    "key": "audio:wav.voice-08",
+    "file": "assets/audio/voice-08.wav"
+  },
+  {
+    "key": "audio:wav.voice-09",
+    "file": "assets/audio/voice-09.wav"
+  },
+  {
+    "key": "audio:wav.voice-10",
+    "file": "assets/audio/voice-10.wav"
+  },
+  {
+    "key": "audio:wav.voice-11",
+    "file": "assets/audio/voice-11.wav"
+  },
+  {
+    "key": "audio:wav.voice-12",
+    "file": "assets/audio/voice-12.wav"
+  },
+  {
+    "key": "audio:wav.voice-13",
+    "file": "assets/audio/voice-13.wav"
+  },
+  {
+    "key": "audio:wav.voice-14",
+    "file": "assets/audio/voice-14.wav"
+  }
 ]
