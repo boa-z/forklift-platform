@@ -7,11 +7,12 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 
 import BottomNav from "../../components/BottomNav";
 import ReturnButton from "../../components/ReturnButton";
+import ScreenBackground from "../../components/ScreenBackground";
 import { t, type LanKey } from "../../i18n";
 import type { TabId } from "../../nav/nav";
 import type { Platform } from "../../platform";
 import { playButton } from "../../platform/feedback";
-import { CLASS, ROW_CLASS, SCREEN_CLASS, TITLE_CLASS } from "../../theme/theme";
+import { CLASS, SCREEN_CLASS, TITLE_CLASS } from "../../theme/theme";
 import { BAKED } from "../main/assets.gen";
 import { SET, SET_MENUS, clampMenuPage } from "./layout";
 
@@ -50,17 +51,25 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
 
   return (
     <View class={SCREEN_CLASS}>
+      <ScreenBackground id="menu" />
       <ReturnButton onPress={goHome} />
 
       {/* 左列菜单 */}
       <For each={SET_MENUS}>
         {(item, index) => (
           <View
-            class={menuIndex() === index() ? ROW_CLASS.selected : ROW_CLASS.normal}
+            class="absolute left-0 top-0"
             style={{ translateX: SET.menuItem.x, translateY: item.y, width: SET.menuItem.w, height: SET.menuItem.h }}
             focusable
             onPress={() => selectMenu(index())}
           >
+            <Image
+              src={menuIndex() === index() ? BAKED["002_menu_item_select_bg"].src : BAKED["002_menu_item_bg"].src}
+              class="absolute left-0 top-0"
+              style={menuIndex() === index()
+                ? { translateX: 0, translateY: 0, width: BAKED["002_menu_item_select_bg"].w, height: BAKED["002_menu_item_select_bg"].h }
+                : { translateX: 0, translateY: 2, width: BAKED["002_menu_item_bg"].w, height: BAKED["002_menu_item_bg"].h }}
+            />
             <Text class={CLASS.menuItemText} style={{ translateX: 0, translateY: 20, width: SET.menuItem.w, height: 32 }}>
               {t(item.titleKey)}
             </Text>
@@ -86,7 +95,8 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
       <View class="absolute left-0 top-0" style={{ translateX: SET.content.x, translateY: SET.content.y, width: SET.content.w, height: SET.content.h }}>
         <For each={rows()}>
           {(key, index) => (
-            <View class={ROW_CLASS.normal} style={{ translateX: SET.row.x, translateY: index() * SET.row.stepY + SET.row.insetY, width: SET.row.w, height: SET.row.bgH }} focusable onPress={() => playButton(props.platform)}>
+            <View class="absolute left-0 top-0" style={{ translateX: SET.row.x, translateY: index() * SET.row.stepY + SET.row.insetY, width: SET.row.w, height: SET.row.bgH }} focusable onPress={() => playButton(props.platform)}>
+              <Image src={BAKED["004_menu_data_bg"].src} class="absolute left-0 top-0" style={{ translateX: 0, translateY: 0, width: BAKED["004_menu_data_bg"].w, height: BAKED["004_menu_data_bg"].h }} />
               <Text class={CLASS.rowText} style={{ translateX: SET.rowTextX, translateY: 16, width: SET.row.w - SET.rowTextX * 2, height: 32 }}>
                 {t(key)}
               </Text>

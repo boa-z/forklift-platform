@@ -35,10 +35,10 @@ export function severityLabel(severity: "info" | "warning" | "critical"): string
   }
 }
 
-/** 故障行文案：`F 编号  说明`。 */
-export function faultRowText(id: number, severity: "info" | "warning" | "critical", occurrences: number): string {
+/** 故障行文案：`T 编号  说明`（与参考行格式一致）。 */
+export function faultRowText(id: number, description: string, occurrences: number): string {
   const count = occurrences > 1 ? `  x${occurrences}` : "";
-  return `F ${id}  ${severityLabel(severity)}${count}`;
+  return `T  ${id}  ${description}${count}`;
 }
 
 /** 总页数（至少 1 页）。 */

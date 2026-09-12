@@ -6,13 +6,14 @@ import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-j
 import { Image, Text, View } from "@pocketjs/framework/components";
 
 import BottomNav from "../../components/BottomNav";
+import ScreenBackground from "../../components/ScreenBackground";
 import { faultText, t } from "../../i18n";
 import type { TabId } from "../../nav/nav";
 import type { Fault, FaultSnapshot, Platform } from "../../platform";
 import { playButton } from "../../platform/feedback";
-import { CLASS, PAGE_BUTTON_CLASS, ROW_CLASS, SCREEN_CLASS } from "../../theme/theme";
+import { CLASS, PAGE_BUTTON_CLASS, SCREEN_CLASS } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "../main/assets.gen";
-import { FAULT, clampFaultPage, faultPageCount, faultRowText } from "./layout";
+import { FAULT, clampFaultPage, faultPageCount, faultRowText, severityLabel } from "./layout";
 
 /** 素材在槽位内居中的绝对位置。 */
 function centeredAt(asset: BakedAsset, x: number, y: number, w: number, h: number): Record<string, number> {
@@ -58,18 +59,15 @@ export default function FaultScreen(props: { platform: Platform; onNavigate: (ta
     setPage(clampFaultPage(page() + delta, activeFaults().length));
   };
 
-  /** 行背景：严重故障用红色，其余用常规行底色。 */
-  const rowClass = (fault: Fault): string =>
-    fault.severity === "critical" ? ROW_CLASS.critical : ROW_CLASS.normal;
-
-  /** 行文案：优先参考故障表，未收录显示 `F 编号  严重度`。 */
+  /** 行文案：`T 编号 + 参考故障表文案`；未收录时用严重度占位。 */
   const rowText = (fault: Fault): string => {
-    const text = faultText(fault.id);
-    return text === "" ? faultRowText(fault.id, fault.severity, fault.occurrenceCount) : text;
+    const description = faultText(fault.id);
+    return faultRowText(fault.id, description === "" ? severityLabel(fault.severity) : description, fault.occurrenceCount);
   };
 
   return (
     <View class={SCREEN_CLASS}>
+      <ScreenBackground id="fault" />
       <Text class={CLASS.screenTitle} style={{ translateX: FAULT.title.x, translateY: FAULT.title.y, width: FAULT.title.w, height: FAULT.title.h }}>
         {t("JCLIB_LAN_FAULT_DIAGNOSIS")}
       </Text>
@@ -88,7 +86,7 @@ export default function FaultScreen(props: { platform: Platform; onNavigate: (ta
       {/* 故障行文本 */}
       <For each={pageRows()}>
         {(fault, index) => (
-          <View class={rowClass(fault)} style={{ translateX: FAULT.rowLabel.x, translateY: FAULT.rowY[index()] ?? FAULT.rowY[0], width: FAULT.rowLabel.w, height: FAULT.rowLabel.h }}>
+          <View class="absolute left-0 top-0" style={{ translateX: FAULT.rowLabel.x, translateY: FAULT.rowY[index()] ?? FAULT.rowY[0], width: FAULT.rowLabel.w, height: FAULT.rowLabel.h }}>
             <Text class={CLASS.rowText} style={{ translateX: 12, translateY: 16, width: FAULT.rowLabel.w - 24, height: FAULT.rowLabel.h }}>
               {rowText(fault)}
             </Text>

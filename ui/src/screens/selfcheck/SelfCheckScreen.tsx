@@ -2,7 +2,7 @@
 // 6 项接入检查实时更新状态与进度；全部通过自动进入，超时（3s）显示完成、
 // 由“进入系统”按钮手动进入。无数据源的项保持等待（见 model.ts）。
 
-import { createMemo, createSignal, For, onCleanup, onMount } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
@@ -12,7 +12,7 @@ import { playButton } from "../../platform/feedback";
 import { CLASS, SCREEN_CLASS } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "../main/assets.gen";
 import { SELF_CHECK } from "./layout";
-import { SELF_CHECK_ITEMS, allPassed, checkProgress, checkStatuses, type CheckStatus } from "./model";
+import { SELF_CHECK_ITEMS, allPassed, checkProgress, checkStatuses, fillSlices, type CheckStatus } from "./model";
 
 /** 自检屏组件。 */
 export default function SelfCheckScreen(props: { platform: Platform; onEnter: () => void }) {
@@ -30,6 +30,25 @@ export default function SelfCheckScreen(props: { platform: Platform; onEnter: ()
   /** 状态、进度与完成判定（逐帧驱动，QuickJS 无定时器）。 */
   const statuses = createMemo<CheckStatus[]>(() => checkStatuses(state()));
   const progress = createMemo<number>(() => checkProgress(statuses()));
+
+  /** 进度条填充宽度（像素）。 */
+  const fillWidth = (): number => Math.round((SELF_CHECK.progressBar.w * progress()) / 100);
+
+  /** 切片宽度到素材名的映射（完整字面量，避免动态键）。 */
+  const sliceAsset = (size: number): BakedAsset => {
+    switch (size) {
+      case 16:
+        return "progress_green_slice16";
+      case 8:
+        return "progress_green_slice8";
+      case 4:
+        return "progress_green_slice4";
+      case 2:
+        return "progress_green_slice2";
+      default:
+        return "progress_green_slice1";
+    }
+  };
 
   /** 进入主屏（去重）。 */
   const enter = (): void => {
@@ -63,12 +82,21 @@ export default function SelfCheckScreen(props: { platform: Platform; onEnter: ()
         {t("JCLIB_LAN_SYSTEM_SELF_CHECK")}
       </Text>
 
-      {/* 进度 */}
+      {/* 进度（贴图：轨道两片 + 绿色 16px 切片平铺，末尾用轨道色补齐） */}
       <Text class={CLASS.progressLabel} style={{ translateX: SELF_CHECK.progressLabel.x, translateY: SELF_CHECK.progressLabel.y, width: SELF_CHECK.progressLabel.w, height: SELF_CHECK.progressLabel.h }}>
         {finished() ? t("JCLIB_LAN_SELF_CHECK_OK") : t("JCLIB_LAN_CHECKING_WAIT")}
       </Text>
-      <View class="absolute left-0 top-0 rounded-[4] bg-[#595757]" style={{ translateX: SELF_CHECK.progressBar.x, translateY: SELF_CHECK.progressBar.y, width: SELF_CHECK.progressBar.w, height: SELF_CHECK.progressBar.h }} />
-      <View class="absolute left-0 top-0 rounded-[4] bg-[#00a552]" style={{ translateX: SELF_CHECK.progressBar.x, translateY: SELF_CHECK.progressBar.y, width: Math.round((SELF_CHECK.progressBar.w * progress()) / 100), height: SELF_CHECK.progressBar.h }} />
+      <Image src={BAKED.progress_grey_t0.src} class="absolute left-0 top-0" style={{ translateX: SELF_CHECK.progressBar.x, translateY: SELF_CHECK.progressBar.y, width: BAKED.progress_grey_t0.w, height: BAKED.progress_grey_t0.h }} />
+      <Image src={BAKED.progress_grey_t1.src} class="absolute left-0 top-0" style={{ translateX: SELF_CHECK.progressBar.x + 512, translateY: SELF_CHECK.progressBar.y, width: BAKED.progress_grey_t1.w, height: BAKED.progress_grey_t1.h }} />
+      <For each={fillSlices(fillWidth())}>
+        {(slice) => (
+          <Image
+            src={BAKED[sliceAsset(slice.size)].src}
+            class="absolute left-0 top-0"
+            style={{ translateX: SELF_CHECK.progressBar.x + slice.x, translateY: SELF_CHECK.progressBar.y, width: BAKED[sliceAsset(slice.size)].w, height: BAKED[sliceAsset(slice.size)].h }}
+          />
+        )}
+      </For>
 
       {/* 检查项 */}
       <For each={SELF_CHECK_ITEMS}>

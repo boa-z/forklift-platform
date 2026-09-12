@@ -115,37 +115,95 @@ for (const dir of ["src", "status", "error", "selfCheck", "menu"]) {
   }
 }
 
+/** 大图裁切（pak 纹理上限 512）：整图按 512 列切片，或截取局部。 */
+interface Crop {
+  /** 生成素材名。 */
+  name: string;
+  /** 相对 ui/assets/reference 的源路径。 */
+  path: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const crops: readonly Crop[] = [
+  // 背景图只有底部导航条带与返回按钮区域有内容；其余像素为基色 #080304
+  // （由屏幕底色绘制）。条带 70 高，左右两片。
+  { name: "main_nav", path: "bg/main_bg.png", x: 0, y: 410, w: 512, h: 70 },
+  { name: "main_nav_r", path: "bg/main_bg.png", x: 512, y: 410, w: 288, h: 70 },
+  { name: "fault_nav", path: "bg/001bg.png", x: 0, y: 410, w: 512, h: 70 },
+  { name: "fault_nav_r", path: "bg/001bg.png", x: 512, y: 410, w: 288, h: 70 },
+  { name: "menu_nav", path: "bg/000_menu_bg.png", x: 0, y: 410, w: 512, h: 70 },
+  { name: "menu_nav_r", path: "bg/000_menu_bg.png", x: 512, y: 410, w: 288, h: 70 },
+  // 自检进度条：629×27，左 512 + 右 117；绿色填充用 16/8/4/2/1 均匀切片
+  // 精确拼出任意宽度（切片取自条带中段，像素与原始一致）。
+  { name: "progress_grey_t0", path: "progress/006ProgressGrey.png", x: 0, y: 0, w: 512, h: 27 },
+  { name: "progress_grey_t1", path: "progress/006ProgressGrey.png", x: 512, y: 0, w: 117, h: 27 },
+  { name: "progress_green_slice16", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 16, h: 27 },
+  { name: "progress_green_slice8", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 8, h: 27 },
+  { name: "progress_green_slice4", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 4, h: 27 },
+  { name: "progress_green_slice2", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 2, h: 27 },
+  { name: "progress_green_slice1", path: "progress/005ProgressGreen.png", x: 280, y: 0, w: 1, h: 27 },
+  // 电量条：662×26 轨道两片；三段颜色各取一个分段。
+  { name: "soc_track_t0", path: "src/soc_0.png", x: 0, y: 0, w: 512, h: 26 },
+  { name: "soc_track_t1", path: "src/soc_0.png", x: 512, y: 0, w: 150, h: 26 },
+  { name: "soc_seg_green", path: "src/soc_1.png", x: 0, y: 0, w: 62, h: 26 },
+  { name: "soc_seg_yellow", path: "src/soc_2.png", x: 0, y: 0, w: 62, h: 26 },
+  { name: "soc_seg_red", path: "src/soc_3.png", x: 0, y: 0, w: 61, h: 25 },
+];
+
 const outDir = join(root, "ui/assets/pak");
 mkdirSync(outDir, { recursive: true });
 const entries: string[] = [];
 const seen = new Set<string>();
 
-for (const source of sources) {
-  if (basename(source) === "main_bg.png" || basename(source) === "008_bg.png") continue;
-  if (basename(source).startsWith("soc_")) continue;
-  const name = basename(source, ".png");
+/** 写入一个烘焙素材并登记清单。 */
+function bake(name: string, width: number, height: number, rgba: Uint8Array, sourceLabel: string): void {
   if (seen.has(name)) {
     console.error(`bake-ui-assets: 素材重名 ${name}`);
     process.exit(1);
   }
   seen.add(name);
+  const padded = padToPow2({ width, height, rgba });
+  writeFileSync(join(outDir, `${name}.png`), encodePng(padded.width, padded.height, padded.rgba));
+  entries.push(
+    `  ${JSON.stringify(name)}: { src: ${JSON.stringify(`assets/pak/${name}.png`)}, w: ${padded.width}, h: ${padded.height}, cw: ${width}, ch: ${height} },`,
+  );
+  console.log(
+    `bake-ui-assets: ${name} ${width}x${height} -> ${padded.width}x${padded.height} (${sourceLabel})`,
+  );
+}
+
+for (const source of sources) {
+  if (basename(source).startsWith("soc_")) continue;
+  const name = basename(source, ".png");
   const image = decodePng(new Uint8Array(await Bun.file(source).arrayBuffer()));
   if (image.width > 512 || image.height > 512) {
     console.error(`bake-ui-assets: ${source} 超过 512（${image.width}x${image.height}）`);
     process.exit(1);
   }
-  const padded = padToPow2(image);
-  writeFileSync(join(outDir, `${name}.png`), encodePng(padded.width, padded.height, padded.rgba));
-  entries.push(
-    `  ${JSON.stringify(name)}: { src: ${JSON.stringify(`assets/pak/${name}.png`)}, w: ${padded.width}, h: ${padded.height} },`,
-  );
-  console.log(
-    `bake-ui-assets: ${name} ${image.width}x${image.height} -> ${padded.width}x${padded.height}`,
-  );
+  bake(name, image.width, image.height, image.rgba, basename(source));
+}
+
+for (const crop of crops) {
+  const source = join(root, "ui/assets/reference", crop.path);
+  const image = decodePng(new Uint8Array(await Bun.file(source).arrayBuffer()));
+  if (crop.x + crop.w > image.width || crop.y + crop.h > image.height) {
+    console.error(`bake-ui-assets: 裁切超出范围 ${crop.name}（源 ${image.width}x${image.height}）`);
+    process.exit(1);
+  }
+  const rgba = new Uint8Array(crop.w * crop.h * 4);
+  for (let row = 0; row < crop.h; row += 1) {
+    const from = ((crop.y + row) * image.width + crop.x) * 4;
+    rgba.set(image.rgba.subarray(from, from + crop.w * 4), row * crop.w * 4);
+  }
+  bake(crop.name, crop.w, crop.h, rgba, crop.path);
 }
 
 const generated = `// 由 tools/bake-ui-assets.ts 生成，请勿手改。
-// 纹理已补齐为 2 的幂；w/h 是补齐后的渲染尺寸（左上对齐，透明扩展）。
+// 纹理已补齐为 2 的幂：w/h 是补齐后的纹理尺寸，cw/ch 是内容尺寸
+// （左上对齐，透明扩展）；渲染用 cw/ch，贴图资源用 w/h。
 
 export const BAKED = {
 ${entries.join("\n")}

@@ -8,8 +8,9 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import type { FaultSnapshot, Platform, VehicleState } from "../../platform";
 import { playButton } from "../../platform/feedback";
 import BottomNav from "../../components/BottomNav";
+import ScreenBackground from "../../components/ScreenBackground";
 import type { TabId } from "../../nav/nav";
-import { CLASS, SCREEN_CLASS, SOC_TRACK_CLASS, socFillClass, speedClass } from "../../theme/theme";
+import { CLASS, SCREEN_CLASS, socFillClass, speedClass } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "./assets.gen";
 import {
   formatClock,
@@ -19,7 +20,9 @@ import {
   formatSteerAngle,
   formatWorkhour,
   gear,
-  socBarState,
+  socBarShape,
+  socSegmentAsset,
+  SOC_SEGMENT_PITCH,
   usable,
 } from "./format";
 import {
@@ -128,16 +131,18 @@ export default function MainScreen(props: { platform: Platform; onNavigate: (tab
     }
   };
 
-  /** 电量条宽度（像素）。 */
-  const socFillWidth = (): number => {
+  /** 电量条分段形状（完整分段数 + 末尾像素）。 */
+  const socShape = (): { full: number; partial: number } => {
     const signal = state()?.socPercent;
-    if (signal === undefined || signal.quality !== "valid") return 0;
-    const percent = Math.min(100, Math.max(0, signal.value)) / 100;
-    return Math.round(SOC.bar.w * percent);
+    if (signal === undefined || signal.quality !== "valid") return { full: 0, partial: 0 };
+    return socBarShape(signal.value);
   };
 
   return (
     <View class={SCREEN_CLASS}>
+      {/* 背景（原始 800×480 背景图两片） */}
+      <ScreenBackground id="main" />
+
       {/* 顶栏 */}
       <Text class={CLASS.clock} style={{ translateX: TOP.rtc.x, translateY: TOP.rtc.y, width: TOP.rtc.w, height: TOP.rtc.h }}>
         {clock()}
@@ -171,15 +176,32 @@ export default function MainScreen(props: { platform: Platform; onNavigate: (tab
         km/h
       </Text>
 
-      {/* 电量 */}
+      {/* 电量（分段贴图：轨道两片 + 完整分段 + 末尾像素块） */}
       <Text class={CLASS.socLabel} style={{ translateX: SOC.label.x, translateY: SOC.label.y, width: SOC.label.w, height: SOC.label.h }}>
         soc
       </Text>
       <Text class={CLASS.socValue} style={{ translateX: SOC.value.x, translateY: SOC.value.y, width: SOC.value.w, height: SOC.value.h }}>
         {formatSoc(state()?.socPercent)}
       </Text>
-      <View class={SOC_TRACK_CLASS} style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: SOC.bar.w, height: SOC.bar.h }} />
-      <View class={socFillClass(state()?.socPercent)} style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: socFillWidth(), height: SOC.bar.h }} />
+      <Image src={BAKED.soc_track_t0.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: BAKED.soc_track_t0.w, height: BAKED.soc_track_t0.h }} />
+      <Image src={BAKED.soc_track_t1.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x + 512, translateY: SOC.bar.y, width: BAKED.soc_track_t1.w, height: BAKED.soc_track_t1.h }} />
+      <For each={Array.from({ length: socShape().full }, (_, index) => index)}>
+        {(index) => (
+          <Image
+            src={BAKED[socSegmentAsset(state()?.socPercent.value)].src}
+            class="absolute left-0 top-0"
+            style={{
+              translateX: SOC.bar.x + index * SOC_SEGMENT_PITCH,
+              translateY: SOC.bar.y,
+              width: BAKED[socSegmentAsset(state()?.socPercent.value)].w,
+              height: BAKED[socSegmentAsset(state()?.socPercent.value)].h,
+            }}
+          />
+        )}
+      </For>
+      <Show when={socShape().partial > 0}>
+        <View class={socFillClass(state()?.socPercent)} style={{ translateX: SOC.bar.x + socShape().full * SOC_SEGMENT_PITCH, translateY: SOC.bar.y, width: socShape().partial, height: SOC.bar.h }} />
+      </Show>
 
       {/* 工时 / 里程 */}
       <Text class={CLASS.counter} style={{ translateX: COUNTERS.workhourValue.x, translateY: COUNTERS.workhourValue.y, width: COUNTERS.workhourValue.w, height: COUNTERS.workhourValue.h }}>

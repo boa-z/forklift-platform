@@ -6,7 +6,6 @@ import { Image, View } from "@pocketjs/framework/components";
 
 import { NAV_TABS, type NavTab, type TabId } from "../nav/nav";
 import { BAKED } from "../screens/main/assets.gen";
-import { SLOT_CLASS } from "../theme/theme";
 
 /** 底部按钮槽位（参考 800×480 布局）。 */
 export const BOTTOM_BUTTONS: Record<TabId, { x: number; y: number; w: number; h: number }> = {
@@ -47,7 +46,7 @@ export default function BottomNav(props: BottomNavProps) {
         const slot = BOTTOM_BUTTONS[tab.id];
         return (
           <View
-            class={SLOT_CLASS}
+            class="absolute left-0 top-0"
             style={{ translateX: slot.x, translateY: slot.y, width: slot.w, height: slot.h }}
             focusable
             onPress={() => {

@@ -44,12 +44,39 @@ export function formatClock(date: Date): string {
   return `${hours}:${minutes}`;
 }
 
-/** SOC 电量条素材状态：0 绿 / 1 黄 / 2 红 / 3 空。 */
-export function socBarState(signal: Signal<number> | undefined): number {
-  if (!usable(signal)) return 3;
-  if (signal.value >= 50) return 0;
-  if (signal.value >= 20) return 1;
-  return 2;
+/** 电量条分段形状（宽度公式与分段贴图边界参照参考实现）。 */
+export interface SocBarShape {
+  /** 完整分段数。 */
+  full: number;
+  /** 末尾不足一个分段的像素宽度。 */
+  partial: number;
+}
+
+/** 分段间距（每 10% 一个分段）。 */
+export const SOC_SEGMENT_PITCH = 67;
+/** 单个分段内容宽度。 */
+export const SOC_SEGMENT_WIDTH = 62;
+
+/** 由电量百分比计算分段形状；无效值返回全空。 */
+export function socBarShape(percent: number | undefined): SocBarShape {
+  if (percent === undefined) return { full: 0, partial: 0 };
+  const soc = Math.min(100, Math.max(0, Math.round(percent)));
+  let width = soc >= 10 ? Math.floor((67 * soc) / 10) - 6 : Math.floor((soc * 61) / 10);
+  if (soc === 11 || soc === 21 || soc === 31) width += 1;
+  for (let index = 0; index < 10; index += 1) {
+    const start = index * SOC_SEGMENT_PITCH;
+    if (width >= start + SOC_SEGMENT_WIDTH) continue;
+    return { full: index, partial: Math.max(0, width - start) };
+  }
+  return { full: 10, partial: 0 };
+}
+
+/** 电量条分段贴图：高于 20% 绿色，10%~20% 黄色，其余红色。 */
+export function socSegmentAsset(percent: number | undefined): "soc_seg_green" | "soc_seg_yellow" | "soc_seg_red" {
+  const value = percent ?? 0;
+  if (value > 20) return "soc_seg_green";
+  if (value > 10) return "soc_seg_yellow";
+  return "soc_seg_red";
 }
 
 /** 档位枚举（素材名由组件映射到烘焙表）。 */

@@ -6,11 +6,12 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 
 import BottomNav from "../../components/BottomNav";
 import ReturnButton from "../../components/ReturnButton";
+import ScreenBackground from "../../components/ScreenBackground";
 import { t, tIndex } from "../../i18n";
 import type { TabId } from "../../nav/nav";
 import type { Platform } from "../../platform";
 import { playButton } from "../../platform/feedback";
-import { CLASS, ROW_CLASS, SCREEN_CLASS, TITLE_CLASS } from "../../theme/theme";
+import { CLASS, SCREEN_CLASS, TITLE_CLASS } from "../../theme/theme";
 import { BAKED } from "../main/assets.gen";
 import { MONITOR } from "./layout";
 import { MONITOR_TREE } from "./menu.gen";
@@ -69,6 +70,7 @@ export default function MonitorScreen(props: { platform: Platform; onNavigate: (
 
   return (
     <View class={SCREEN_CLASS}>
+      <ScreenBackground id="menu" />
       <ReturnButton onPress={back} />
 
       <Text class={TITLE_CLASS} style={{ translateX: MONITOR.title.x, translateY: MONITOR.title.y, width: MONITOR.title.w, height: MONITOR.title.h }}>
@@ -90,7 +92,8 @@ export default function MonitorScreen(props: { platform: Platform; onNavigate: (
       <View class="absolute left-0 top-0" style={{ translateX: MONITOR.content.x, translateY: MONITOR.content.y, width: MONITOR.content.w, height: MONITOR.content.h }}>
         <For each={pageItems()}>
           {(node, index) => (
-            <View class={ROW_CLASS.normal} style={{ translateX: MONITOR.row.x, translateY: index() * MONITOR.row.stepY, width: MONITOR.row.w, height: MONITOR.row.h }} focusable onPress={() => activate(node)}>
+            <View class="absolute left-0 top-0" style={{ translateX: MONITOR.row.x, translateY: index() * MONITOR.row.stepY, width: MONITOR.row.w, height: MONITOR.row.h }} focusable onPress={() => activate(node)}>
+              <Image src={BAKED["004_menu_data_bg"].src} class="absolute left-0 top-0" style={{ translateX: 0, translateY: 0, width: BAKED["004_menu_data_bg"].w, height: BAKED["004_menu_data_bg"].h }} />
               <Text class={CLASS.rowIndex} style={{ translateX: MONITOR.indexX, translateY: 16, width: 60, height: MONITOR.row.h }}>
                 {String(currentPage() * MONITOR_PAGE_SIZE + index() + 1).padStart(2, "0")}
               </Text>
