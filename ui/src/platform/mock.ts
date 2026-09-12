@@ -9,6 +9,17 @@ export class MockTransport implements Transport {
   private messageHandler: ((message: ServerMessage) => void) | undefined;
   private closeHandler: ((error?: Error) => void) | undefined;
   private phase = 0;
+  private charging: boolean;
+
+  /** 可选注入充电状态；默认未充电。 */
+  constructor(options: { charging?: boolean } = {}) {
+    this.charging = options.charging ?? false;
+  }
+
+  /** 更新充电状态（开发/验收用）。 */
+  setCharging(charging: boolean): void {
+    this.charging = charging;
+  }
 
   /** 建立“连接”；数据由宿主逐帧调用 tick() 推送。 */
   async connect(): Promise<void> {
@@ -60,6 +71,7 @@ export class MockTransport implements Transport {
       socPercent: signal(56),
       voltageV: signal(51.2),
       currentA: signal(12.5),
+      charging: signal(this.charging),
       motorRpm: signal(1500),
       motorTemperatureC: signal(45),
       pressureMpa: signal(12.5),

@@ -85,7 +85,7 @@ function encodePng(width: number, height: number, rgba: Uint8Array): Uint8Array 
   return png;
 }
 
-/** 透明补齐到 2 的幂（左上对齐）。 */
+/** 补齐到 2 的幂（左上对齐）：全不透明图用不透明黑补齐，其余透明补齐。 */
 function padToPow2(image: { width: number; height: number; rgba: Uint8Array }): {
   width: number;
   height: number;
@@ -97,7 +97,17 @@ function padToPow2(image: { width: number; height: number; rgba: Uint8Array }): 
   if (width === image.width && height === image.height) {
     return { ...image, padded: false };
   }
+  let opaque = true;
+  for (let index = 3; index < image.rgba.length; index += 4) {
+    if (image.rgba[index] !== 255) {
+      opaque = false;
+      break;
+    }
+  }
   const rgba = new Uint8Array(width * height * 4);
+  if (opaque) {
+    for (let index = 3; index < rgba.length; index += 4) rgba[index] = 255;
+  }
   for (let y = 0; y < image.height; y += 1) {
     rgba.set(
       image.rgba.subarray(y * image.width * 4, (y + 1) * image.width * 4),
@@ -108,7 +118,7 @@ function padToPow2(image: { width: number; height: number; rgba: Uint8Array }): 
 }
 
 const sources: string[] = [];
-for (const dir of ["src", "status", "error", "selfCheck", "menu"]) {
+for (const dir of ["src", "status", "error", "selfCheck", "menu", "digits", "charging"]) {
   const base = join(root, "ui/assets/reference", dir);
   for (const name of readdirSync(base).filter((n) => n.endsWith(".png"))) {
     sources.push(join(base, name));

@@ -22,6 +22,7 @@ function state(overrides: Partial<VehicleState> = {}): VehicleState {
     socPercent: signal(80),
     voltageV: signal(51.2),
     currentA: signal(0),
+    charging: signal(false),
     motorRpm: signal(0),
     motorTemperatureC: signal(30),
     pressureMpa: signal(0),

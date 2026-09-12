@@ -18,6 +18,7 @@ pub struct SimVehicle {
     pub motor_temp_c: f32,
     pub direction: Direction,
     pub can_online: bool,
+    pub charging: bool,
 }
 
 impl Default for SimVehicle {
@@ -30,6 +31,7 @@ impl Default for SimVehicle {
             motor_temp_c: 25.0,
             direction: Direction::Neutral,
             can_online: true,
+            charging: false,
         }
     }
 }
@@ -49,6 +51,8 @@ pub struct Step {
     pub motor_temp_c: Option<f32>,
     /// `forward` / `reverse` / `neutral`。
     pub direction: Option<String>,
+    /// 充电条件注入。
+    pub charging: Option<bool>,
     /// `motor_overheat` / `battery_low` / `can_offline` 便捷故障注入。
     pub fault: Option<String>,
 }
@@ -116,6 +120,9 @@ impl Scenario {
                     other => return Err(ScenarioError::Direction(other.to_string())),
                 };
             }
+            if let Some(charging) = step.charging {
+                vehicle.charging = charging;
+            }
             if let Some(fault) = &step.fault {
                 match fault.as_str() {
                     "motor_overheat" => vehicle.motor_temp_c = 95.0,
@@ -145,6 +152,7 @@ pub fn encode_frames(vehicle: &SimVehicle, now_ms: u64) -> Vec<CanFrame> {
     battery[0] = vehicle.soc_percent as u8;
     let voltage = (48.0 * 10.0) as u16;
     battery[1..3].copy_from_slice(&voltage.to_le_bytes());
+    battery[5] = u8::from(vehicle.charging);
 
     let mut motion = [0u8; 8];
     motion[0..2].copy_from_slice(&((vehicle.speed_kph * 10.0) as u16).to_le_bytes());
@@ -163,7 +171,7 @@ pub fn encode_frames(vehicle: &SimVehicle, now_ms: u64) -> Vec<CanFrame> {
         CanFrame {
             id: forkliftd::backends::can::CAN_ID_BATTERY,
             data: battery,
-            dlc: 3,
+            dlc: 6,
             timestamp_ms: now_ms,
         },
         CanFrame {
@@ -240,6 +248,7 @@ mod tests {
                     rpm: None,
                     motor_temp_c: None,
                     direction: Some("reverse".to_string()),
+                    charging: None,
                     fault: None,
                 },
                 Step {
@@ -249,6 +258,7 @@ mod tests {
                     rpm: None,
                     motor_temp_c: None,
                     direction: None,
+                    charging: None,
                     fault: None,
                 },
             ],
@@ -273,6 +283,7 @@ mod tests {
                 rpm: None,
                 motor_temp_c: None,
                 direction: None,
+                charging: None,
                 fault: Some("motor_overheat".to_string()),
             }],
         };
@@ -300,6 +311,7 @@ mod tests {
                 rpm: None,
                 motor_temp_c: None,
                 direction: Some("sideways".to_string()),
+                charging: None,
                 fault: None,
             }],
         };

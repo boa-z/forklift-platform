@@ -61,6 +61,8 @@ pub struct MockCanBackend {
     last_emit_ms: Option<u64>,
     started_ms: Option<u64>,
     stopped: bool,
+    /// 充电条件标志（mock 电池帧字节 5）。
+    charging: bool,
 }
 
 impl MockCanBackend {
@@ -72,6 +74,11 @@ impl MockCanBackend {
     /// 模拟总线断开（后续不再发帧）。
     pub fn set_stopped(&mut self, stopped: bool) {
         self.stopped = stopped;
+    }
+
+    /// 设置充电条件标志（mock 场景/测试使用）。
+    pub fn set_charging(&mut self, charging: bool) {
+        self.charging = charging;
     }
 
     /// 依据启动以来的相位生成三帧占位报文。
@@ -94,6 +101,7 @@ impl MockCanBackend {
         battery[1..3].copy_from_slice(&voltage.to_le_bytes());
         let current = ((15.0 + 10.0 * phase) * 10.0) as i16;
         battery[3..5].copy_from_slice(&current.to_le_bytes());
+        battery[5] = u8::from(self.charging);
 
         let mut motion = [0u8; 8];
         motion[0..2].copy_from_slice(&((speed_kph * 10.0) as u16).to_le_bytes());
@@ -112,7 +120,7 @@ impl MockCanBackend {
             CanFrame {
                 id: CAN_ID_BATTERY,
                 data: battery,
-                dlc: 5,
+                dlc: 6,
                 timestamp_ms: now_ms,
             },
             CanFrame {
@@ -157,6 +165,9 @@ pub fn decode(frame: &CanFrame) -> VehicleUpdate {
             update.voltage_v = Some(u16::from_le_bytes([frame.data[1], frame.data[2]]) as f32 / 10.0);
             update.current_a =
                 Some(i16::from_le_bytes([frame.data[3], frame.data[4]]) as f32 / 10.0);
+            if frame.dlc >= 6 {
+                update.charging = Some(frame.data[5] != 0);
+            }
         }
         CAN_ID_MOTION => {
             update.speed_kph =
@@ -201,6 +212,19 @@ mod tests {
         assert!(update.speed_kph.unwrap() > 5.0);
         assert!(update.soc_percent.unwrap() > 60.0);
         assert_eq!(update.direction, Some(Direction::Forward));
+    }
+
+    /// 充电标志随电池帧字节 5 传递。
+    #[test]
+    fn charging_flag_decodes_from_battery_frame() {
+        let mut backend = MockCanBackend::new();
+        backend.set_charging(true);
+        let now = crate::diagnostics::now_ms();
+        backend.started_ms = Some(now.saturating_sub(10_000));
+        let mut frames = Vec::new();
+        backend.poll(&mut frames).unwrap();
+        let update = decode_frames(&frames);
+        assert_eq!(update.charging, Some(true));
     }
 
     /// 总线断开后不再产生帧。

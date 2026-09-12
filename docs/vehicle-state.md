@@ -34,6 +34,7 @@ SignalQuality = Valid | Stale | Invalid | Unavailable
 | battery | `soc_percent` | f32 | `uintSoc` / `uintBatterySoc` |
 | battery | `voltage_v` | f32 | `floatBatteryVoltage` |
 | battery | `current_a` | f32 | `floatBatteryCurrent`（含 32000 偏移解码） |
+| battery | `charging` | bool | 充电条件满足（钥匙电低且充电电源电压足够；daemon 判定） |
 | motor | `rpm` | f32 | 牵引控制器转速 |
 | motor | `temperature_c` | f32 | 电机温度（原始值 −40） |
 | hydraulics | `pressure_mpa` | f32 | ADC GPAI7 标定后 |

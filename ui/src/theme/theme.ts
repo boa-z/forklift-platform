@@ -35,6 +35,7 @@ export const CLASS = {
   menuItemText: "absolute left-0 top-0 text-center text-lg text-[#f5f7fa]",
   progressLabel: "absolute left-0 top-0 text-right text-base text-[#b3b2b3]",
   enterButtonText: "absolute left-0 top-0 text-center text-xl text-[#f5f7fa]",
+  chargingStatus: "absolute left-0 top-0 text-center text-xl text-[#fcfcfc]",
 } as const;
 
 /** 电量条填充色（返回完整字面量；分段阈值与参考一致）。 */

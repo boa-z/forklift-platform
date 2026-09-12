@@ -3,7 +3,7 @@
 // 各自手写协议常量。
 
 /** 支持的协议版本。 */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 /** 'F''L''K''T' 小端。 */
 export const PROTOCOL_MAGIC = 0x544b4c46;
 /** 帧头长度。 */
@@ -43,6 +43,8 @@ export interface VehicleState {
   socPercent: Signal<number>;
   voltageV: Signal<number>;
   currentA: Signal<number>;
+  /** 充电条件满足（daemon 判定）。 */
+  charging: Signal<boolean>;
   motorRpm: Signal<number>;
   motorTemperatureC: Signal<number>;
   pressureMpa: Signal<number>;
@@ -361,6 +363,7 @@ function decodeVehicleState(reader: Reader): VehicleState {
     socPercent: decodeF32Signal(reader),
     voltageV: decodeF32Signal(reader),
     currentA: decodeF32Signal(reader),
+    charging: decodeBoolSignal(reader),
     motorRpm: decodeF32Signal(reader),
     motorTemperatureC: decodeF32Signal(reader),
     pressureMpa: decodeF32Signal(reader),

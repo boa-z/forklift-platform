@@ -227,6 +227,8 @@ pub struct BatteryState {
     pub soc_percent: Signal<f32>,
     pub voltage_v: Signal<f32>,
     pub current_a: Signal<f32>,
+    /// 充电条件满足（daemon 侧判定：钥匙电低且充电电源电压足够）。
+    pub charging: Signal<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -289,6 +291,7 @@ impl VehicleState {
                 soc_percent: Signal::unavailable(),
                 voltage_v: Signal::unavailable(),
                 current_a: Signal::unavailable(),
+                charging: Signal::unavailable(),
             },
             motor: MotorState {
                 rpm: Signal::unavailable(),
@@ -347,6 +350,7 @@ impl VehicleState {
         self.battery.soc_percent.encode(writer);
         self.battery.voltage_v.encode(writer);
         self.battery.current_a.encode(writer);
+        self.battery.charging.encode(writer);
         self.motor.rpm.encode(writer);
         self.motor.temperature_c.encode(writer);
         self.hydraulics.pressure_mpa.encode(writer);
@@ -373,6 +377,7 @@ impl VehicleState {
         let soc_percent = Signal::decode(reader)?;
         let voltage_v = Signal::decode(reader)?;
         let current_a = Signal::decode(reader)?;
+        let charging = Signal::decode(reader)?;
         let rpm = Signal::decode(reader)?;
         let temperature_c = Signal::decode(reader)?;
         let pressure_mpa = Signal::decode(reader)?;
@@ -399,6 +404,7 @@ impl VehicleState {
                 soc_percent,
                 voltage_v,
                 current_a,
+                charging,
             },
             motor: MotorState {
                 rpm,

@@ -14,6 +14,7 @@ pub struct VehicleUpdate {
     pub soc_percent: Option<f32>,
     pub voltage_v: Option<f32>,
     pub current_a: Option<f32>,
+    pub charging: Option<bool>,
     pub rpm: Option<f32>,
     pub motor_temp_c: Option<f32>,
     pub pressure_mpa: Option<f32>,
@@ -44,6 +45,7 @@ impl VehicleUpdate {
         merge_option!(soc_percent);
         merge_option!(voltage_v);
         merge_option!(current_a);
+        merge_option!(charging);
         merge_option!(rpm);
         merge_option!(motor_temp_c);
         merge_option!(pressure_mpa);
@@ -86,6 +88,7 @@ impl VehicleModel {
         set_signal!(self.state.battery.soc_percent, update.soc_percent);
         set_signal!(self.state.battery.voltage_v, update.voltage_v);
         set_signal!(self.state.battery.current_a, update.current_a);
+        set_signal!(self.state.battery.charging, update.charging);
         set_signal!(self.state.motor.rpm, update.rpm);
         set_signal!(self.state.motor.temperature_c, update.motor_temp_c);
         set_signal!(self.state.hydraulics.pressure_mpa, update.pressure_mpa);
