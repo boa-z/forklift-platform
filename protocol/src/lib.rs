@@ -9,6 +9,7 @@ pub mod codec;
 pub mod command;
 pub mod event;
 pub mod header;
+pub mod mcu;
 pub mod messages;
 pub mod socket;
 pub mod state;
