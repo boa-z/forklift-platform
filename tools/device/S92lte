@@ -24,6 +24,15 @@ start() {
 		printf "Fail (no usb0)\n"
 		return 1
 	fi
+	ifconfig usb0 up
+	i=0
+	while [ "$i" -lt 20 ]; do
+		if ifconfig usb0 2>/dev/null | grep -q RUNNING; then
+			break
+		fi
+		i=$((i + 1))
+		sleep 1
+	done
 	if udhcpc -i usb0 -q -n -b; then
 		printf "dhcp OK \n"
 	else

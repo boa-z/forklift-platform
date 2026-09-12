@@ -19,6 +19,20 @@ start() {
 	sleep 1
 	printf "Starting wpa_supplicant: "
 	wpa_supplicant -B -i wlan0 -c "$WPA_CONF" -D nl80211 && printf "OK \n"
+	printf "Waiting association: "
+	i=0
+	while [ "$i" -lt 30 ]; do
+		if [ "$(cat /sys/class/net/wlan0/carrier 2>/dev/null)" = "1" ]; then
+			printf "OK \n"
+			break
+		fi
+		i=$((i + 1))
+		sleep 1
+	done
+	if [ "$i" -ge 30 ]; then
+		printf "Timeout \n"
+		return 1
+	fi
 	printf "Starting udhcpc: "
 	udhcpc -i wlan0 -q -n -b && printf "OK \n"
 }
