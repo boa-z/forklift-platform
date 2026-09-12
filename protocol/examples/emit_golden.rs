@@ -4,8 +4,9 @@
 //! TS 测试会解码这些帧并回编码客户端消息，两边协议由此保持同步。
 
 use protocol::{
-    encode, ConnectivityEvent, Direction, Fault, FaultSeverity, FaultSnapshot, HealthState, Message,
-    Signal, SystemState, VehicleState, SoundId, FAULT_MOTOR_OVERHEAT, VERSION,
+    encode, mcu, AntiDismantleEvent, AuthStateEvent, ConnectivityEvent, Direction, Fault,
+    FaultSeverity, FaultSnapshot, HealthState, Message, RtcEvent, Signal, SoundId, SystemState,
+    VehicleState, FAULT_MOTOR_OVERHEAT, VERSION,
 };
 
 /// 把字节序列转换为十六进制字符串。
@@ -95,6 +96,105 @@ fn main() {
     state.connectivity.can_online = true;
     state.connectivity.camera_online = true;
     frames.push(("vehicle_state", encode(11, &Message::VehicleState(Box::new(state)))));
+
+    // v5：授权/MCU 相关事件与命令。
+    frames.push((
+        "swipe_report",
+        encode(
+            12,
+            &Message::SwipeReport(mcu::SwipeReport {
+                status: 1,
+                index: 3,
+                name: *b"ZHANG SA",
+                card: [0x11, 0x22, 0x33, 0x44],
+                id: [0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x34, 0x56, 0x78],
+                phone: [0; 6],
+                driver_license: [0; 3],
+                ic_license: [0; 3],
+            }),
+        ),
+    ));
+    frames.push((
+        "auth_state",
+        encode(
+            13,
+            &Message::AuthState(AuthStateEvent {
+                level: 2,
+                authorized: true,
+            }),
+        ),
+    ));
+    frames.push((
+        "anti_dismantle",
+        encode(
+            14,
+            &Message::AntiDismantle(AntiDismantleEvent {
+                enabled: true,
+                alarm: false,
+            }),
+        ),
+    ));
+    frames.push((
+        "rtc",
+        encode(
+            15,
+            &Message::Rtc(RtcEvent {
+                year: 26,
+                month: 9,
+                day: 13,
+                hour: 8,
+                minute: 30,
+                second: 5,
+            }),
+        ),
+    ));
+    frames.push(("auth_level", encode(16, &Message::AuthLevel(2))));
+    frames.push((
+        "verify_password",
+        encode(
+            17,
+            &Message::VerifyPassword {
+                password: "32431".to_string(),
+            },
+        ),
+    ));
+    frames.push((
+        "set_admin_password",
+        encode(
+            18,
+            &Message::SetAdminPassword {
+                old_password: "22222".to_string(),
+                new_password: "54321".to_string(),
+            },
+        ),
+    ));
+    frames.push((
+        "enter_license_tail",
+        encode(
+            19,
+            &Message::EnterLicenseTail {
+                digits: "5678".to_string(),
+            },
+        ),
+    ));
+    frames.push((
+        "report_power_on",
+        encode(
+            20,
+            &Message::ReportPowerOn {
+                kind: 1,
+                card: [0x11, 0x22, 0x33, 0x44],
+            },
+        ),
+    ));
+    frames.push((
+        "swipe_reply",
+        encode(21, &Message::SwipeReply { status: 0 }),
+    ));
+    frames.push((
+        "set_anti_dismantle",
+        encode(22, &Message::SetAntiDismantle { enabled: true }),
+    ));
 
     let json: Vec<String> = frames
         .into_iter()

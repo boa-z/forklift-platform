@@ -3,16 +3,22 @@
 
 import {
   PROTOCOL_VERSION,
+  type AntiDismantleState,
+  type AuthState,
+  type ClientMessage,
   type Fault,
   type FaultSnapshot,
+  type RtcTime,
   type ServerMessage,
   type SoundId,
+  type SwipeReportMessage,
   type SystemState,
   type VehicleState,
 } from "./protocol";
 import type { Transport } from "./transport";
 
 export type { Fault, FaultSnapshot, SoundId, SystemState, VehicleState } from "./protocol";
+export type { AntiDismantleState, AuthState, RtcTime, SwipeReportMessage } from "./protocol";
 export type { Transport } from "./transport";
 export { MockTransport } from "./mock";
 
@@ -56,6 +62,32 @@ export interface Platform {
     /** 设置音量（0-100）。 */
     setVolume(volume: number): void;
   };
+  auth: {
+    /** 最近一次授权状态（权限级别/是否已授权）。 */
+    snapshot(): AuthState;
+    /** 订阅授权状态更新。 */
+    subscribe(listener: (state: AuthState) => void): () => void;
+    /** 校验设置密码，返回 0 用户/1 管理员/2 超级管理员。 */
+    verifyPassword(password: string): Promise<number>;
+    /** 修改管理员密码；旧密码错误或新密码非法时 reject。 */
+    setAdminPassword(oldPassword: string, newPassword: string): Promise<void>;
+    /** 提交双重认证的身份证后 4/6 位。 */
+    enterLicenseTail(digits: string): void;
+    /** 上报开机方式（0 密码/1 刷卡/4 蓝牙）；card 为 8 位十六进制。 */
+    reportPowerOn(kind: number, card?: string): void;
+    /** 回给模组的刷卡处理结果（0 成功）。 */
+    swipeReply(status: number): void;
+    /** 订阅刷卡上报（授权屏展示与双重认证）。 */
+    onSwipe(listener: (report: SwipeReportMessage) => void): () => void;
+    /** 最近一次防拆状态。 */
+    antiDismantle(): AntiDismantleState;
+    /** 订阅防拆状态更新。 */
+    subscribeAntiDismantle(listener: (state: AntiDismantleState) => void): () => void;
+    /** 设置防拆使能。 */
+    setAntiDismantle(enabled: boolean): void;
+    /** 订阅模组 RTC 时间。 */
+    onRtc(listener: (rtc: RtcTime) => void): () => void;
+  };
   /** 发送 PING 并等待 PONG，返回往返时的 nonce。 */
   ping(nonce?: number): Promise<number>;
 }
@@ -65,13 +97,21 @@ export function createPlatform(transport: Transport): Platform {
   let vehicleState: VehicleState | undefined;
   let faultSnapshot: FaultSnapshot = { timestampMs: 0, faults: [] };
   let systemState: SystemState | undefined;
+  let authState: AuthState = { level: 0, authorized: false };
+  let antiDismantleState: AntiDismantleState = { enabled: false, alarm: false };
   let connected = false;
 
   const vehicleListeners = new Set<(state: VehicleState) => void>();
   const faultListeners = new Set<(snapshot: FaultSnapshot) => void>();
   const faultEventListeners = new Set<(event: FaultEvent) => void>();
   const systemListeners = new Set<(state: SystemState) => void>();
+  const authListeners = new Set<(state: AuthState) => void>();
+  const antiDismantleListeners = new Set<(state: AntiDismantleState) => void>();
+  const swipeListeners = new Set<(report: SwipeReportMessage) => void>();
+  const rtcListeners = new Set<(rtc: RtcTime) => void>();
   const pendingPings = new Map<number, (nonce: number) => void>();
+  let pendingVerify: ((level: number) => void) | undefined;
+  let pendingAdmin: { resolve: () => void; reject: (error: Error) => void } | undefined;
 
   // 握手期间由统一分发处理 SERVER_VERSION，不覆盖 onMessage 订阅。
   let handshakeResolve: (() => void) | undefined;
@@ -118,6 +158,32 @@ export function createPlatform(transport: Transport): Platform {
         systemState = message.state;
         for (const listener of systemListeners) listener(message.state);
         break;
+      case "authState":
+        authState = message.state;
+        for (const listener of authListeners) listener(message.state);
+        break;
+      case "authLevel": {
+        const resolve = pendingVerify;
+        pendingVerify = undefined;
+        resolve?.(message.level);
+        break;
+      }
+      case "antiDismantle":
+        antiDismantleState = message.state;
+        for (const listener of antiDismantleListeners) listener(message.state);
+        break;
+      case "swipeReport":
+        for (const listener of swipeListeners) listener(message.report);
+        break;
+      case "rtc":
+        for (const listener of rtcListeners) listener(message.rtc);
+        break;
+      case "ok": {
+        const pending = pendingAdmin;
+        pendingAdmin = undefined;
+        pending?.resolve();
+        break;
+      }
       case "pong": {
         const resolve = pendingPings.get(message.nonce);
         if (resolve !== undefined) {
@@ -127,7 +193,13 @@ export function createPlatform(transport: Transport): Platform {
         break;
       }
       case "error":
-        // 非握手期的错误只记录，不能从事件回调里抛出（会打断事件循环）。
+        // 非握手期的错误只记录，不能从事件回调里抛出（会打断事件循环）；
+        // 改密/校验的等待方在这里收到 reject。
+        if (pendingAdmin !== undefined) {
+          const pending = pendingAdmin;
+          pendingAdmin = undefined;
+          pending.reject(new Error(message.message));
+        }
         console.warn(`daemon 返回错误 ${message.code}：${message.message}`);
         break;
       default:
@@ -169,6 +241,12 @@ export function createPlatform(transport: Transport): Platform {
       };
       transport.send({ type: "hello", clientVersion: PROTOCOL_VERSION });
     });
+
+  /** 发送一条客户端命令；未连接时抛错。 */
+  const send = (message: ClientMessage): void => {
+    if (!connected) throw new Error("平台尚未连接");
+    transport.send(message);
+  };
 
   return {
     async connect(): Promise<void> {
@@ -220,6 +298,80 @@ export function createPlatform(transport: Transport): Platform {
       setVolume(volume) {
         if (!connected) throw new Error("平台尚未连接");
         transport.send({ type: "setVolume", volume });
+      },
+    },
+    auth: {
+      snapshot: () => authState,
+      subscribe(listener) {
+        authListeners.add(listener);
+        listener(authState);
+        return () => authListeners.delete(listener);
+      },
+      verifyPassword(password) {
+        return new Promise((resolve, reject) => {
+          if (!connected) {
+            reject(new Error("平台尚未连接"));
+            return;
+          }
+          const timer = setTimeout(() => {
+            pendingVerify = undefined;
+            reject(new Error("密码校验超时"));
+          }, 3000);
+          pendingVerify = (level) => {
+            clearTimeout(timer);
+            resolve(level);
+          };
+          transport.send({ type: "verifyPassword", password });
+        });
+      },
+      setAdminPassword(oldPassword, newPassword) {
+        return new Promise((resolve, reject) => {
+          if (!connected) {
+            reject(new Error("平台尚未连接"));
+            return;
+          }
+          const timer = setTimeout(() => {
+            pendingAdmin = undefined;
+            reject(new Error("改密超时"));
+          }, 3000);
+          pendingAdmin = {
+            resolve: () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            reject: (error) => {
+              clearTimeout(timer);
+              reject(error);
+            },
+          };
+          transport.send({ type: "setAdminPassword", oldPassword, newPassword });
+        });
+      },
+      enterLicenseTail(digits) {
+        send({ type: "enterLicenseTail", digits });
+      },
+      reportPowerOn(kind, card = "ffffffff") {
+        send({ type: "reportPowerOn", kind, card });
+      },
+      swipeReply(status) {
+        send({ type: "swipeReply", status });
+      },
+      onSwipe(listener) {
+        swipeListeners.add(listener);
+        return () => swipeListeners.delete(listener);
+      },
+      antiDismantle: () => antiDismantleState,
+      subscribeAntiDismantle(listener) {
+        antiDismantleListeners.add(listener);
+        listener(antiDismantleState);
+        return () => antiDismantleListeners.delete(listener);
+      },
+      setAntiDismantle(enabled) {
+        send({ type: "setAntiDismantle", enabled });
+      },
+      onRtc(listener) {
+        rtcListeners.add(listener);
+        return () => rtcListeners.delete(listener);
       },
     },
     ping(nonce = 0x0102_0304): Promise<number> {

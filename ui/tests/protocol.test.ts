@@ -77,6 +77,35 @@ describe("协议金样（由 Rust protocol crate 生成）", () => {
     expect(message.message).toBe("bad frame");
   });
 
+  test("刷卡/授权/防拆/RTC 解码", () => {
+    const swipe = decodeFrame(frame("swipe_report")).message;
+    if (swipe.type !== "swipeReport") throw new Error("消息类型错误");
+    expect(swipe.report.status).toBe(1);
+    expect(swipe.report.name).toBe("ZHANG SA");
+    expect(swipe.report.card).toBe("11223344");
+    expect(swipe.report.id).toBe("123456789012345678");
+
+    const auth = decodeFrame(frame("auth_state")).message;
+    if (auth.type !== "authState") throw new Error("消息类型错误");
+    expect(auth.state.level).toBe(2);
+    expect(auth.state.authorized).toBe(true);
+
+    const anti = decodeFrame(frame("anti_dismantle")).message;
+    if (anti.type !== "antiDismantle") throw new Error("消息类型错误");
+    expect(anti.state.enabled).toBe(true);
+    expect(anti.state.alarm).toBe(false);
+
+    const rtc = decodeFrame(frame("rtc")).message;
+    if (rtc.type !== "rtc") throw new Error("消息类型错误");
+    expect(rtc.rtc.year).toBe(26);
+    expect(rtc.rtc.month).toBe(9);
+    expect(rtc.rtc.second).toBe(5);
+
+    const level = decodeFrame(frame("auth_level")).message;
+    if (level.type !== "authLevel") throw new Error("消息类型错误");
+    expect(level.level).toBe(2);
+  });
+
   test("客户端消息回编码与金样逐字节一致", () => {
     expect(toHex(encodeClient({ type: "hello", clientVersion: PROTOCOL_VERSION }, 1))).toBe(
       hex("hello"),
@@ -88,6 +117,27 @@ describe("协议金样（由 Rust protocol crate 生成）", () => {
     expect(toHex(encodeClient({ type: "setVolume", volume: 70 }, 5))).toBe(hex("set_volume"));
     expect(toHex(encodeClient({ type: "setBrightness", brightness: 80 }, 6))).toBe(
       hex("set_brightness"),
+    );
+    expect(toHex(encodeClient({ type: "verifyPassword", password: "32431" }, 17))).toBe(
+      hex("verify_password"),
+    );
+    expect(
+      toHex(
+        encodeClient(
+          { type: "setAdminPassword", oldPassword: "22222", newPassword: "54321" },
+          18,
+        ),
+      ),
+    ).toBe(hex("set_admin_password"));
+    expect(toHex(encodeClient({ type: "enterLicenseTail", digits: "5678" }, 19))).toBe(
+      hex("enter_license_tail"),
+    );
+    expect(
+      toHex(encodeClient({ type: "reportPowerOn", kind: 1, card: "11223344" }, 20)),
+    ).toBe(hex("report_power_on"));
+    expect(toHex(encodeClient({ type: "swipeReply", status: 0 }, 21))).toBe(hex("swipe_reply"));
+    expect(toHex(encodeClient({ type: "setAntiDismantle", enabled: true }, 22))).toBe(
+      hex("set_anti_dismantle"),
     );
   });
 });

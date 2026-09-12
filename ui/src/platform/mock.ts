@@ -6,8 +6,10 @@ import {
   type ClientMessage,
   type Direction,
   type Fault,
+  type RtcTime,
   type ServerMessage,
   type SoundId,
+  type SwipeReportMessage,
   type VehicleState,
 } from "./protocol";
 import type { Transport } from "./transport";
@@ -43,13 +45,23 @@ export class MockTransport implements Transport {
   private phase = 0;
   private charging: boolean;
   private antiDismantle: boolean;
+  private adminPassword: string;
   private effects: MockEffects;
   private scenario: MockScenario;
 
   /** 可选注入充电/防拆卸状态、设备效果回调与验收场景；默认均为空。 */
-  constructor(options: { charging?: boolean; antiDismantle?: boolean; effects?: MockEffects; scenario?: MockScenario } = {}) {
+  constructor(
+    options: {
+      charging?: boolean;
+      antiDismantle?: boolean;
+      adminPassword?: string;
+      effects?: MockEffects;
+      scenario?: MockScenario;
+    } = {},
+  ) {
     this.charging = options.charging ?? false;
     this.antiDismantle = options.antiDismantle ?? false;
+    this.adminPassword = options.adminPassword ?? "22222";
     this.effects = options.effects ?? {};
     this.scenario = options.scenario ?? {};
   }
@@ -90,7 +102,51 @@ export class MockTransport implements Transport {
         this.effects.setBrightness?.(message.brightness);
         this.messageHandler?.({ type: "ok" });
         break;
+      case "verifyPassword": {
+        // 与参考默认一致：超级 32431、管理员 22222；其余降级为 0。
+        const level =
+          message.password === "32431" ? 2 : message.password === this.adminPassword ? 1 : 0;
+        this.messageHandler?.({ type: "authLevel", level });
+        break;
+      }
+      case "setAdminPassword": {
+        if (message.oldPassword !== this.adminPassword && message.oldPassword !== "32431") {
+          this.messageHandler?.({ type: "error", code: 2001, message: "旧密码不正确" });
+          break;
+        }
+        if (!/^[0-9]{4,8}$/.test(message.newPassword)) {
+          this.messageHandler?.({ type: "error", code: 2001, message: "新密码必须是 4-8 位数字" });
+          break;
+        }
+        this.adminPassword = message.newPassword;
+        this.messageHandler?.({ type: "ok" });
+        break;
+      }
+      case "enterLicenseTail":
+        this.messageHandler?.({ type: "ok" });
+        break;
+      case "reportPowerOn":
+      case "swipeReply":
+        break;
+      case "setAntiDismantle":
+        this.antiDismantle = message.enabled;
+        this.messageHandler?.({
+          type: "antiDismantle",
+          state: { enabled: message.enabled, alarm: false },
+        });
+        this.messageHandler?.({ type: "ok" });
+        break;
     }
+  }
+
+  /** 注入一条刷卡上报（开发/验收用）。 */
+  pushSwipe(report: SwipeReportMessage): void {
+    this.messageHandler?.({ type: "swipeReport", report });
+  }
+
+  /** 注入一帧模组时间（开发/验收用）。 */
+  pushRtc(rtc: RtcTime): void {
+    this.messageHandler?.({ type: "rtc", rtc });
   }
 
   /** 订阅服务端消息。 */

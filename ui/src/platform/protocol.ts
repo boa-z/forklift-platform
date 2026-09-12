@@ -3,7 +3,7 @@
 // 各自手写协议常量。
 
 /** 支持的协议版本。 */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 /** 'F''L''K''T' 小端。 */
 export const PROTOCOL_MAGIC = 0x544b4c46;
 /** 帧头长度。 */
@@ -109,6 +109,47 @@ export interface SystemState {
   memAvailableKb: number;
 }
 
+/** 刷卡上报（字段已解码为 UI 友好的字符串）。 */
+export interface SwipeReportMessage {
+  /** 模组状态：0 失败/1 授权成功/2 重复/3 其它卡/4 关机/5 沉默期。 */
+  status: number;
+  index: number;
+  /** ASCII 姓名（去空）。 */
+  name: string;
+  /** 8 位十六进制卡号。 */
+  card: string;
+  /** 18 位身份证号（BCD 解出）。 */
+  id: string;
+  /** 手机号（十六进制）。 */
+  phone: string;
+  /** 驾照/IC 证（十六进制）。 */
+  driverLicense: string;
+  icLicense: string;
+}
+
+/** 授权状态：权限级别与是否已授权。 */
+export interface AuthState {
+  level: number;
+  /** 开机授权是否通过（刷卡/蓝牙/沉默期）。 */
+  authorized: boolean;
+}
+
+/** 防拆状态。 */
+export interface AntiDismantleState {
+  enabled: boolean;
+  alarm: boolean;
+}
+
+/** 模组 RTC 时间（年取后两位）。 */
+export interface RtcTime {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
 /** 服务端可以发送的消息。 */
 export type ServerMessage =
   | { type: "serverVersion"; version: number }
@@ -118,8 +159,13 @@ export type ServerMessage =
   | { type: "faultRaised"; fault: Fault }
   | { type: "faultCleared"; fault: Fault }
   | { type: "connectivity"; event: ConnectivityEvent }
+  | { type: "swipeReport"; report: SwipeReportMessage }
+  | { type: "authState"; state: AuthState }
+  | { type: "antiDismantle"; state: AntiDismantleState }
+  | { type: "rtc"; rtc: RtcTime }
   | { type: "pong"; nonce: number }
   | { type: "ok" }
+  | { type: "authLevel"; level: number }
   | { type: "error"; code: number; message: string };
 
 /** UI 可以发送的消息。 */
@@ -128,7 +174,13 @@ export type ClientMessage =
   | { type: "ping"; nonce: number }
   | { type: "playSound"; sound: SoundId }
   | { type: "setVolume"; volume: number }
-  | { type: "setBrightness"; brightness: number };
+  | { type: "setBrightness"; brightness: number }
+  | { type: "reportPowerOn"; kind: number; card: string }
+  | { type: "swipeReply"; status: number }
+  | { type: "verifyPassword"; password: string }
+  | { type: "setAdminPassword"; oldPassword: string; newPassword: string }
+  | { type: "enterLicenseTail"; digits: string }
+  | { type: "setAntiDismantle"; enabled: boolean };
 
 /** 帧头解析结果。 */
 export interface FrameHeader {
@@ -149,13 +201,24 @@ const MESSAGE_TYPES = {
   eventFaultRaised: 0x0200,
   eventFaultCleared: 0x0201,
   eventConnectivity: 0x0202,
+  eventSwipeReport: 0x0203,
+  eventAuthState: 0x0204,
+  eventAntiDismantle: 0x0205,
+  eventRtc: 0x0206,
   cmdPlaySound: 0x0300,
   cmdSetVolume: 0x0301,
   cmdSetBrightness: 0x0302,
   cmdPing: 0x0303,
+  cmdReportPowerOn: 0x0304,
+  cmdSwipeReply: 0x0305,
+  cmdVerifyPassword: 0x0306,
+  cmdSetAdminPassword: 0x0307,
+  cmdEnterLicenseTail: 0x0308,
+  cmdSetAntiDismantle: 0x0309,
   respOk: 0x0400,
   respError: 0x0401,
   respPong: 0x0402,
+  respAuthLevel: 0x0403,
 } as const;
 
 const SOUND_IDS: Record<SoundId, number> = {
@@ -201,6 +264,19 @@ class Writer {
   /** 写入 u32。 */
   u32(value: number): void {
     this.bytes.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+  }
+
+  /** 写入原始字节。 */
+  raw(value: Uint8Array): void {
+    for (const byte of value) this.bytes.push(byte);
+  }
+
+  /** 写入 u16 长度前缀的 ASCII 字符串（本协议只传密码/身份证尾号）。 */
+  string(value: string): void {
+    this.u16(value.length);
+    for (let index = 0; index < value.length; index += 1) {
+      this.bytes.push(value.charCodeAt(index) & 0xff);
+    }
   }
 
   /** 取出字节。 */
@@ -266,6 +342,74 @@ class Reader {
   bool(): boolean {
     return this.u8() !== 0;
   }
+
+  /** 读取 n 字节（复制，避免后续读取影响）。 */
+  rawBytes(length: number): Uint8Array {
+    const start = this.view.byteOffset + this.offset;
+    const out = new Uint8Array(this.view.buffer.slice(start, start + length));
+    this.offset += length;
+    return out;
+  }
+
+  /** 读取 u16 长度前缀的 ASCII 字符串。 */
+  string(): string {
+    const length = this.u16();
+    const raw = this.rawBytes(length);
+    return asciiString(raw);
+  }
+}
+
+/** 字节数组转 ASCII（遇到 0 停止）。 */
+function asciiString(bytes: Uint8Array): string {
+  let out = "";
+  for (const byte of bytes) {
+    if (byte === 0) break;
+    out += String.fromCharCode(byte);
+  }
+  return out;
+}
+
+/** 字节数组转十六进制。 */
+function hexString(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** BCD 字节数组转数字串（nibble 0x0A 记为 x）。 */
+function bcdString(bytes: Uint8Array): string {
+  let out = "";
+  for (const byte of bytes) {
+    for (const nibble of [byte >> 4, byte & 0x0f]) {
+      out += nibble === 0x0a ? "x" : nibble.toString(10);
+    }
+  }
+  return out;
+}
+
+/** 十六进制字符串转 4 字节卡号（非法输入按 0）。 */
+function hexToBytes(text: string): Uint8Array {
+  const out = new Uint8Array(4);
+  for (let index = 0; index < 4; index += 1) {
+    const pair = text.slice(index * 2, index * 2 + 2);
+    const value = Number.parseInt(pair, 16);
+    out[index] = Number.isNaN(value) ? 0 : value;
+  }
+  return out;
+}
+
+/** 解码 35 字节刷卡上报。 */
+function decodeSwipeReport(reader: Reader): SwipeReportMessage {
+  return {
+    status: reader.u8(),
+    index: reader.u8(),
+    name: asciiString(reader.rawBytes(8)),
+    card: hexString(reader.rawBytes(4)),
+    id: bcdString(reader.rawBytes(9)),
+    phone: hexString(reader.rawBytes(6)),
+    driverLicense: hexString(reader.rawBytes(3)),
+    icLicense: hexString(reader.rawBytes(3)),
+  };
 }
 
 /** 解析 16 字节帧头并做基础校验。 */
@@ -331,6 +475,34 @@ export function decodeFrame(bytes: Uint8Array): { header: FrameHeader; message: 
         },
       };
       break;
+    case MESSAGE_TYPES.eventSwipeReport:
+      message = { type: "swipeReport", report: decodeSwipeReport(reader) };
+      break;
+    case MESSAGE_TYPES.eventAuthState:
+      message = {
+        type: "authState",
+        state: { level: reader.u8(), authorized: reader.bool() },
+      };
+      break;
+    case MESSAGE_TYPES.eventAntiDismantle:
+      message = {
+        type: "antiDismantle",
+        state: { enabled: reader.bool(), alarm: reader.bool() },
+      };
+      break;
+    case MESSAGE_TYPES.eventRtc:
+      message = {
+        type: "rtc",
+        rtc: {
+          year: reader.u8(),
+          month: reader.u8(),
+          day: reader.u8(),
+          hour: reader.u8(),
+          minute: reader.u8(),
+          second: reader.u8(),
+        },
+      };
+      break;
     case MESSAGE_TYPES.respOk:
       message = { type: "ok" };
       break;
@@ -339,6 +511,9 @@ export function decodeFrame(bytes: Uint8Array): { header: FrameHeader; message: 
       break;
     case MESSAGE_TYPES.respPong:
       message = { type: "pong", nonce: reader.u32() };
+      break;
+    case MESSAGE_TYPES.respAuthLevel:
+      message = { type: "authLevel", level: reader.u8() };
       break;
     default:
       throw new Error(`未知消息类型：0x${header.messageType.toString(16)}`);
@@ -489,6 +664,32 @@ export function encodeClient(message: ClientMessage, sequence: number): Uint8Arr
     case "setBrightness":
       messageType = MESSAGE_TYPES.cmdSetBrightness;
       writer.u8(message.brightness);
+      break;
+    case "reportPowerOn":
+      messageType = MESSAGE_TYPES.cmdReportPowerOn;
+      writer.u8(message.kind);
+      writer.raw(hexToBytes(message.card));
+      break;
+    case "swipeReply":
+      messageType = MESSAGE_TYPES.cmdSwipeReply;
+      writer.u8(message.status);
+      break;
+    case "verifyPassword":
+      messageType = MESSAGE_TYPES.cmdVerifyPassword;
+      writer.string(message.password);
+      break;
+    case "setAdminPassword":
+      messageType = MESSAGE_TYPES.cmdSetAdminPassword;
+      writer.string(message.oldPassword);
+      writer.string(message.newPassword);
+      break;
+    case "enterLicenseTail":
+      messageType = MESSAGE_TYPES.cmdEnterLicenseTail;
+      writer.string(message.digits);
+      break;
+    case "setAntiDismantle":
+      messageType = MESSAGE_TYPES.cmdSetAntiDismantle;
+      writer.u8(message.enabled ? 1 : 0);
       break;
   }
   const payload = writer.finish();
