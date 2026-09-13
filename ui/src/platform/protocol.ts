@@ -109,9 +109,9 @@ export interface SystemState {
   memAvailableKb: number;
 }
 
-/** 刷卡上报（字段已解码为 UI 友好的字符串）。 */
+/** 刷卡上报（packed 37B，字段已解码为 UI 友好的字符串）。 */
 export interface SwipeReportMessage {
-  /** 模组状态：0 失败/1 授权成功/2 重复/3 其它卡/4 关机/5 沉默期。 */
+  /** 模组状态（u16）：0 失败/1 授权成功/2 重复/3 其它卡/4 关机/5 沉默期。 */
   status: number;
   index: number;
   /** ASCII 姓名（去空）。 */
@@ -125,6 +125,8 @@ export interface SwipeReportMessage {
   /** 驾照/IC 证（十六进制）。 */
   driverLicense: string;
   icLicense: string;
+  /** 本地状态位（bit0 = 双重认证）。 */
+  config: number;
 }
 
 /** 授权状态：权限级别与是否已授权。 */
@@ -404,18 +406,18 @@ function hexToBytes(text: string): Uint8Array {
   return out;
 }
 
-/** 解码 35 字节刷卡上报。 */
+/** 解码 37 字节刷卡上报（与参考 C 结构一致：u16 状态 + … + config）。 */
 function decodeSwipeReport(reader: Reader): SwipeReportMessage {
-  return {
-    status: reader.u8(),
-    index: reader.u8(),
-    name: asciiString(reader.rawBytes(8)),
-    card: hexString(reader.rawBytes(4)),
-    id: bcdString(reader.rawBytes(9)),
-    phone: hexString(reader.rawBytes(6)),
-    driverLicense: hexString(reader.rawBytes(3)),
-    icLicense: hexString(reader.rawBytes(3)),
-  };
+  const status = reader.u16();
+  const index = reader.u8();
+  const name = asciiString(reader.rawBytes(8));
+  const card = hexString(reader.rawBytes(4));
+  const id = bcdString(reader.rawBytes(9));
+  const phone = hexString(reader.rawBytes(6));
+  const driverLicense = hexString(reader.rawBytes(3));
+  const icLicense = hexString(reader.rawBytes(3));
+  const config = reader.u8();
+  return { status, index, name, card, id, phone, driverLicense, icLicense, config };
 }
 
 /**

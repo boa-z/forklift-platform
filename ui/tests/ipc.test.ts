@@ -73,7 +73,7 @@ describe("IpcTransport", () => {
     expect(fake.sent.length).toBe(1);
   });
 
-  test("坏帧触发关闭回调", async () => {
+  test("坏帧不关闭连接，后续帧仍可分发", async () => {
     const fake = new FakeIpc();
     const transport = new IpcTransport(fake, "/run/forklift/forkliftd.sock");
     const platform = createPlatform(transport);
@@ -86,11 +86,19 @@ describe("IpcTransport", () => {
     transport.onClose(() => {
       closed = true;
     });
-    // 16 字节帧头 + 超限载荷长度：分帧器应报错并关闭连接。
+    // 16 字节帧头 + 超限载荷长度：分帧器报错但连接保留。
     const bad = new Uint8Array(16);
     new DataView(bad.buffer).setUint32(8, 0xffffffff, true);
     fake.queue(bad);
     transport.pump();
-    expect(closed).toBe(true);
+    expect(closed).toBe(false);
+
+    let flags = -1;
+    platform.settings.subscribe((value) => {
+      flags = value;
+    });
+    fake.queue(serverFrame(0x0404, 3, new Uint8Array([0b10])));
+    transport.pump();
+    expect(flags).toBe(0b10);
   });
 });

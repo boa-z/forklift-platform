@@ -18,7 +18,7 @@ const MAX_DATAGRAMS_PER_PUMP = 8;
 
 /** 使用 PocketJS ipc 宿主模块的传输实现。 */
 export class IpcTransport implements Transport {
-  private readonly decoder = new FrameDecoder();
+  private decoder = new FrameDecoder();
   private messageHandler: ((message: ServerMessage) => void) | undefined;
   private closeHandler: ((error?: Error) => void) | undefined;
   private sequence = 1;
@@ -77,9 +77,9 @@ export class IpcTransport implements Transport {
           this.messageHandler?.(decodeFrame(frame).message);
         }
       } catch (error) {
-        this.close();
-        this.closeHandler?.(error as Error);
-        return;
+        // 单帧异常不断开连接：丢弃缓冲（SEQPACKET 一报一帧）后继续排空。
+        this.decoder = new FrameDecoder();
+        console.warn(`IPC 帧解码失败：${String(error)}`);
       }
     }
   }

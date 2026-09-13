@@ -98,6 +98,8 @@ export interface Platform {
   };
   /** 发送 PING 并等待 PONG，返回往返时的 nonce。 */
   ping(nonce?: number): Promise<number>;
+  /** 外壳每帧调用：推进帧时钟（QuickJS 的 setTimeout 是微任务，不能当计时器）。 */
+  tick(now?: number): void;
 }
 
 /** 用给定传输构造平台 API。 */
@@ -123,6 +125,30 @@ export function createPlatform(transport: Transport): Platform {
   let pendingVerify: ((level: number) => void) | undefined;
   let pendingSettings: ((flags: number) => void) | undefined;
   let pendingAdmin: { resolve: () => void; reject: (error: Error) => void } | undefined;
+
+  // 帧时钟超时表：QuickJS 的 setTimeout 被降级为微任务，只能由外壳逐帧推进。
+  const deadlines = new Map<number, { deadline: number; expire: () => void }>();
+  let nextDeadlineId = 1;
+  /** 登记一个帧时钟超时，返回句柄。 */
+  const setDeadline = (timeoutMs: number, expire: () => void): number => {
+    const id = nextDeadlineId;
+    nextDeadlineId += 1;
+    deadlines.set(id, { deadline: Date.now() + timeoutMs, expire });
+    return id;
+  };
+  /** 取消帧时钟超时。 */
+  const clearDeadline = (id: number): void => {
+    deadlines.delete(id);
+  };
+  /** 推进帧时钟：到期回调逐个触发。 */
+  const expireDeadlines = (now: number): void => {
+    for (const [id, entry] of Array.from(deadlines.entries())) {
+      if (now >= entry.deadline) {
+        deadlines.delete(id);
+        entry.expire();
+      }
+    }
+  };
 
   // 握手期间由统一分发处理 SERVER_VERSION，不覆盖 onMessage 订阅。
   let handshakeResolve: (() => void) | undefined;
@@ -245,17 +271,17 @@ export function createPlatform(transport: Transport): Platform {
   /** 等待握手：发送 HELLO 并由统一分发验证 SERVER_VERSION。 */
   const handshake = (): Promise<void> =>
     new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = setDeadline(3000, () => {
         handshakeResolve = undefined;
         handshakeReject = undefined;
         reject(new Error("握手超时"));
-      }, 3000);
+      });
       handshakeResolve = () => {
-        clearTimeout(timer);
+        clearDeadline(timer);
         resolve();
       };
       handshakeReject = (error: Error) => {
-        clearTimeout(timer);
+        clearDeadline(timer);
         reject(error);
       };
       transport.send({ type: "hello", clientVersion: PROTOCOL_VERSION });
@@ -332,12 +358,12 @@ export function createPlatform(transport: Transport): Platform {
             reject(new Error("平台尚未连接"));
             return;
           }
-          const timer = setTimeout(() => {
+          const timer = setDeadline(3000, () => {
             pendingVerify = undefined;
             reject(new Error("密码校验超时"));
-          }, 3000);
+          });
           pendingVerify = (level) => {
-            clearTimeout(timer);
+            clearDeadline(timer);
             resolve(level);
           };
           transport.send({ type: "verifyPassword", password });
@@ -349,17 +375,17 @@ export function createPlatform(transport: Transport): Platform {
             reject(new Error("平台尚未连接"));
             return;
           }
-          const timer = setTimeout(() => {
+          const timer = setDeadline(3000, () => {
             pendingAdmin = undefined;
             reject(new Error("改密超时"));
-          }, 3000);
+          });
           pendingAdmin = {
             resolve: () => {
-              clearTimeout(timer);
+              clearDeadline(timer);
               resolve();
             },
             reject: (error) => {
-              clearTimeout(timer);
+              clearDeadline(timer);
               reject(error);
             },
           };
@@ -400,12 +426,12 @@ export function createPlatform(transport: Transport): Platform {
             reject(new Error("平台尚未连接"));
             return;
           }
-          const timer = setTimeout(() => {
+          const timer = setDeadline(3000, () => {
             pendingSettings = undefined;
             reject(new Error("读取设置超时"));
-          }, 3000);
+          });
           pendingSettings = (flags) => {
-            clearTimeout(timer);
+            clearDeadline(timer);
             resolve(flags);
           };
           transport.send({ type: "getSettings" });
@@ -420,15 +446,18 @@ export function createPlatform(transport: Transport): Platform {
         return () => settingsListeners.delete(listener);
       },
     },
+    tick(now = Date.now()): void {
+      expireDeadlines(now);
+    },
     ping(nonce = 0x0102_0304): Promise<number> {
       return new Promise((resolve, reject) => {
         if (!connected) {
           reject(new Error("平台尚未连接"));
           return;
         }
-        const timer = setTimeout(() => reject(new Error("PING 超时")), 3000);
+        const timer = setDeadline(3000, () => reject(new Error("PING 超时")));
         pendingPings.set(nonce, (value) => {
-          clearTimeout(timer);
+          clearDeadline(timer);
           resolve(value);
         });
         transport.send({ type: "ping", nonce });

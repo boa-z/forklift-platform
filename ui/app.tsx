@@ -99,6 +99,7 @@ export default function ForkliftApp() {
   });
 
   onFrame(() => {
+    platform.tick();
     transport.pump?.();
     transport.tick?.();
     const now = Date.now();
