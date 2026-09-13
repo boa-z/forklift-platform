@@ -17,6 +17,7 @@ import {
   setPasswordBootEnabled,
   setSelfCheckEnabled,
   subscribeSettings,
+  currentSettingsFlags,
 } from "../../settings";
 import ScreenBackground from "../../components/ScreenBackground";
 import Slider from "../../components/Slider";
@@ -166,6 +167,16 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     props.onNavigate("home");
   };
 
+  /** 开关变化后写回 daemon（失败只记录；防拆位由 daemon 自己维护）。 */
+  const persistSettings = (): void => {
+    try {
+      const antiDismantle = props.platform.auth.antiDismantle().enabled;
+      props.platform.settings.set(currentSettingsFlags(antiDismantle));
+    } catch {
+      // 连接建立前忽略。
+    }
+  };
+
   /** 行点击：子对话框、开关切换或改密流程。 */
   const openRow = (key: LanKey): void => {
     playButton(props.platform);
@@ -173,10 +184,16 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     else if (key === "JCLIB_LAN_BRIGHTNESS_ADJUST") setDialog("brightness");
     else if (key === "JCLIB_LAN_VOLUME_ADJUST") setDialog("volume");
     else if (key === "JCLIB_LAN_SET_ADMIN_PASSWORD") setPasswordKind("adminOld");
-    else if (key === "JCLIB_LAN_SELF_CHECK_FUNCTION") setSelfCheckEnabled(!getSelfCheckEnabled());
-    else if (key === "JCLIB_LAN_AUTH_ENABLE") setAuthorizationEnabled(!getAuthorizationEnabled());
-    else if (key === "JCLIB_LAN_PASSWORD_BOOT_ENABLE")
+    else if (key === "JCLIB_LAN_SELF_CHECK_FUNCTION") {
+      setSelfCheckEnabled(!getSelfCheckEnabled());
+      persistSettings();
+    } else if (key === "JCLIB_LAN_AUTH_ENABLE") {
+      setAuthorizationEnabled(!getAuthorizationEnabled());
+      persistSettings();
+    } else if (key === "JCLIB_LAN_PASSWORD_BOOT_ENABLE") {
       setPasswordBootEnabled(!getPasswordBootEnabled());
+      persistSettings();
+    }
     else if (key === "JCLIB_LAN_ANTI_REMOVAL_ENABLE") {
       try {
         const enabled = props.platform.auth.antiDismantle().enabled;

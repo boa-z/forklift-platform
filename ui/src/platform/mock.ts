@@ -46,6 +46,7 @@ export class MockTransport implements Transport {
   private charging: boolean;
   private antiDismantle: boolean;
   private adminPassword: string;
+  private settingsFlags = 0b0010;
   private effects: MockEffects;
   private scenario: MockScenario;
 
@@ -134,6 +135,14 @@ export class MockTransport implements Transport {
           type: "antiDismantle",
           state: { enabled: message.enabled, alarm: false },
         });
+        this.messageHandler?.({ type: "ok" });
+        break;
+      case "getSettings":
+        this.messageHandler?.({ type: "settings", flags: this.settingsFlags });
+        break;
+      case "setSettings":
+        this.settingsFlags = message.flags;
+        this.messageHandler?.({ type: "settings", flags: message.flags });
         this.messageHandler?.({ type: "ok" });
         break;
     }

@@ -16,6 +16,7 @@ use crate::backends::{
     AdcBackend, AdcChannel, AudioBackend, CameraBackend, CameraHealth, CanBackend, McuBackend,
     WatchdogBackend,
 };
+use crate::settings::{SettingsStore, SETTING_ANTI_DISMANTLE};
 use crate::config::Config;
 use crate::diagnostics::{now_ms, sample_memory};
 use crate::fault::{FaultChange, FaultManager};
@@ -51,6 +52,8 @@ pub struct ServiceConfig {
     pub mcu_enable: bool,
     /// 管理员密码等授权状态的持久化路径。
     pub auth_path: PathBuf,
+    /// UI 设置位域的持久化路径。
+    pub settings_path: PathBuf,
 }
 
 impl From<&Config> for ServiceConfig {
@@ -65,6 +68,7 @@ impl From<&Config> for ServiceConfig {
             volume: config.volume,
             mcu_enable: config.mcu_enable,
             auth_path: config.auth_path.clone(),
+            settings_path: config.settings_path.clone(),
         }
     }
 }
@@ -91,6 +95,8 @@ pub struct Service {
     volume: u8,
     started_ms: u64,
     auth: AuthManager,
+    settings: SettingsStore,
+    settings_applied: bool,
     last_rtc_query_ms: u64,
 }
 
@@ -126,6 +132,8 @@ impl Service {
             volume: config.volume,
             started_ms: now,
             auth,
+            settings: SettingsStore::load(&config.settings_path),
+            settings_applied: false,
             last_rtc_query_ms: 0,
         };
         service.apply_initial_volume();
@@ -250,6 +258,13 @@ impl Service {
         }
         for frame in &frames {
             self.handle_mcu_frame(frame);
+        }
+        if !self.settings_applied {
+            self.settings_applied = true;
+            if self.settings.flags() & SETTING_ANTI_DISMANTLE != 0 {
+                self.auth.set_anti_dismantle(true);
+                self.send_mcu(mcu::CMD_SET, mcu::index::ANTI_DISMANTLE, vec![1]);
+            }
         }
         if now.saturating_sub(self.last_rtc_query_ms) >= 1_000 {
             self.last_rtc_query_ms = now;
@@ -451,10 +466,37 @@ impl Service {
                         mcu::index::ANTI_DISMANTLE,
                         vec![u8::from(enabled)],
                     );
+                    let mut flags = self.settings.flags();
+                    if enabled {
+                        flags |= SETTING_ANTI_DISMANTLE;
+                    } else {
+                        flags &= !SETTING_ANTI_DISMANTLE;
+                    }
+                    if let Err(error) = self.settings.set_flags(flags) {
+                        log::warn!(target: "settings", "写入防拆设置失败：{error}");
+                    }
                     let (enabled, alarm) = self.auth.anti_dismantle();
                     self.server
                         .publish(&Message::AntiDismantle(AntiDismantleEvent { enabled, alarm }));
                 }
+                Message::GetSettings => {
+                    self.server.publish(&Message::Settings {
+                        flags: self.settings.flags(),
+                    });
+                }
+                Message::SetSettings { flags } => match self.settings.set_flags(flags) {
+                    Ok(()) => {
+                        self.server.publish(&Message::Settings { flags });
+                        self.server.publish(&Message::Ok);
+                    }
+                    Err(error) => {
+                        log::warn!(target: "settings", "写入设置失败：{error}");
+                        self.server.publish(&Message::Error {
+                            code: 2004,
+                            message: error.to_string(),
+                        });
+                    }
+                },
                 other => {
                     log::warn!(target: "ipc", "客户端 #{} 的命令被忽略：{other:?}", command.client_id);
                 }

@@ -195,6 +195,15 @@ fn main() {
         "set_anti_dismantle",
         encode(22, &Message::SetAntiDismantle { enabled: true }),
     ));
+    frames.push(("get_settings", encode(23, &Message::GetSettings)));
+    frames.push((
+        "set_settings",
+        encode(24, &Message::SetSettings { flags: 0b1010 }),
+    ));
+    frames.push((
+        "settings",
+        encode(25, &Message::Settings { flags: 0b1010 }),
+    ));
 
     let json: Vec<String> = frames
         .into_iter()

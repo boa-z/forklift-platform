@@ -12,7 +12,7 @@ import { initialBootStage, stageAfterSelfCheck, type BootStage } from "./src/boo
 import { AlarmEngine, type AlarmInputs } from "./src/platform/alarms";
 import { createPlatform, MockTransport } from "./src/platform";
 import { createDeviceEffects } from "./src/platform/effects";
-import { getAuthorizationEnabled, getSelfCheckEnabled } from "./src/settings";
+import { applySettingsFlags, getAuthorizationEnabled, getSelfCheckEnabled } from "./src/settings";
 import AuthorizationScreen from "./src/screens/authorization/AuthorizationScreen";
 import CameraScreen from "./src/screens/camera/CameraScreen";
 import FaultScreen from "./src/screens/fault/FaultScreen";
@@ -33,9 +33,7 @@ export default function ForkliftApp() {
     },
   });
   const platform = createPlatform(transport);
-  const [stage, setStage] = createSignal<BootStage>(
-    initialBootStage(getSelfCheckEnabled(), getAuthorizationEnabled()),
-  );
+  const [stage, setStage] = createSignal<BootStage | "loading">("loading");
   const [tab, setTab] = createSignal<TabId>("home");
   const [charging, setCharging] = createSignal(false);
   const [removed, setRemoved] = createSignal(false);
@@ -76,11 +74,19 @@ export default function ForkliftApp() {
       unsubscribeFaults();
     });
     platform.connect()
-      .then(() => {
+      .then(async () => {
+        // 先取 daemon 的设置位域（失败时用默认值），再决定开机阶段。
+        try {
+          applySettingsFlags(await platform.settings.get());
+        } catch {
+          applySettingsFlags(0b0010);
+        }
+        setStage(initialBootStage(getSelfCheckEnabled(), getAuthorizationEnabled()));
         platform.audio.play("startup");
       })
       .catch((error: unknown) => {
         console.warn(`forklift: 平台连接失败：${String(error)}`);
+        setStage(initialBootStage(getSelfCheckEnabled(), getAuthorizationEnabled()));
       });
   });
 
@@ -109,6 +115,10 @@ export default function ForkliftApp() {
   return (
     <>
       <Switch>
+      {/* 设置读取中：黑屏一帧，避免闪错屏。 */}
+      <Match when={stage() === "loading"}>
+        <View class="absolute left-0 top-0 bg-[#000000]" style={{ translateX: 0, translateY: 0, width: 800, height: 480 }} />
+      </Match>
       {/* 充电条件优先于自检与页签（与参考主循环的条件检测一致）。 */}
       <Match when={charging()}>
         <ChargingScreen platform={platform} />

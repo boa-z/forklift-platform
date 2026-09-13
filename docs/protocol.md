@@ -68,13 +68,16 @@ client                          daemon
 | 0x0307 | `CMD_SET_ADMIN_PASSWORD` | C→D | 旧密码 + 新密码；应答 `RESP_OK`/`RESP_ERROR`(2001) |
 | 0x0308 | `CMD_ENTER_LICENSE_TAIL` | C→D | 身份证后 4/6 位；应答 `RESP_ERROR`(2002/2003) 或不正确 |
 | 0x0309 | `CMD_SET_ANTI_DISMANTLE` | C→D | `bool` enabled |
+| 0x030A | `CMD_GET_SETTINGS` | C→D | 空；应答 `RESP_SETTINGS` |
+| 0x030B | `CMD_SET_SETTINGS` | C→D | `u8` 位域；应答 `RESP_SETTINGS` + `RESP_OK` |
 | 0x0400 | `RESP_OK` | D→C | 空 |
 | 0x0401 | `RESP_ERROR` | D→C | `u16` code + 长度前缀字符串（≤128 字符） |
 | 0x0402 | `RESP_PONG` | D→C | `u32` nonce |
 | 0x0403 | `RESP_AUTH_LEVEL` | D→C | `u8` level（0/1/2） |
+| 0x0404 | `RESP_SETTINGS` | D→C | `u8` 位域（bit0 自检/bit1 授权/bit2 密码开机/bit3 防拆） |
 
 错误码：1001 协议/校验失败、1002 握手顺序或版本不满足、2001 改密失败、
-2002 身份证尾号不正确、2003 无待认证刷卡。
+2002 身份证尾号不正确、2003 无待认证刷卡、2004 设置持久化失败。
 
 ## 5. VehicleState（0x0100）
 

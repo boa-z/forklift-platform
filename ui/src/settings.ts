@@ -4,6 +4,17 @@
 /** 超级管理员密码（参考实现硬编码）。 */
 export const SUPER_PASSWORD = "32431";
 
+/** 位域 bit0：开机自检。 */
+export const SETTING_SELF_CHECK = 1 << 0;
+/** 位域 bit1：开机授权（刷卡页）使能。 */
+export const SETTING_AUTHORIZATION = 1 << 1;
+/** 位域 bit2：密码开机使能。 */
+export const SETTING_PASSWORD_BOOT = 1 << 2;
+/** 位域 bit3：防拆使能（daemon/MCU 侧处理）。 */
+export const SETTING_ANTI_DISMANTLE = 1 << 3;
+/** 默认位域：授权使能开启，其余关闭（与参考一致）。 */
+export const DEFAULT_SETTINGS_FLAGS = SETTING_AUTHORIZATION;
+
 let selfCheckEnabled = false;
 let authorizationEnabled = true;
 let passwordBootEnabled = false;
@@ -58,6 +69,24 @@ export function getAuthLevel(): number {
 export function setAuthLevel(level: number): void {
   authLevel = level;
   notify();
+}
+
+/** 应用 daemon 下发的设置位域（防拆位由 daemon/MCU 维护，不在 UI 镜像）。 */
+export function applySettingsFlags(flags: number): void {
+  selfCheckEnabled = (flags & SETTING_SELF_CHECK) !== 0;
+  authorizationEnabled = (flags & SETTING_AUTHORIZATION) !== 0;
+  passwordBootEnabled = (flags & SETTING_PASSWORD_BOOT) !== 0;
+  notify();
+}
+
+/** 汇总当前位域；防拆位由调用方传入平台状态。 */
+export function currentSettingsFlags(antiDismantle: boolean): number {
+  let flags = 0;
+  if (selfCheckEnabled) flags |= SETTING_SELF_CHECK;
+  if (authorizationEnabled) flags |= SETTING_AUTHORIZATION;
+  if (passwordBootEnabled) flags |= SETTING_PASSWORD_BOOT;
+  if (antiDismantle) flags |= SETTING_ANTI_DISMANTLE;
+  return flags;
 }
 
 /** 订阅设置变化，返回取消函数。 */

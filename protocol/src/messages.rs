@@ -48,11 +48,14 @@ pub enum MessageType {
     CmdSetAdminPassword = 0x0307,
     CmdEnterLicenseTail = 0x0308,
     CmdSetAntiDismantle = 0x0309,
+    CmdGetSettings = 0x030A,
+    CmdSetSettings = 0x030B,
 
     RespOk = 0x0400,
     RespError = 0x0401,
     RespPong = 0x0402,
     RespAuthLevel = 0x0403,
+    RespSettings = 0x0404,
 }
 
 impl MessageType {
@@ -91,10 +94,13 @@ impl TryFrom<u16> for MessageType {
             0x0307 => Ok(Self::CmdSetAdminPassword),
             0x0308 => Ok(Self::CmdEnterLicenseTail),
             0x0309 => Ok(Self::CmdSetAntiDismantle),
+            0x030a => Ok(Self::CmdGetSettings),
+            0x030b => Ok(Self::CmdSetSettings),
             0x0400 => Ok(Self::RespOk),
             0x0401 => Ok(Self::RespError),
             0x0402 => Ok(Self::RespPong),
             0x0403 => Ok(Self::RespAuthLevel),
+            0x0404 => Ok(Self::RespSettings),
             other => Err(ProtocolError::UnknownMessageType { found: other }),
         }
     }
@@ -142,12 +148,18 @@ pub enum Message {
     EnterLicenseTail { digits: String },
     /// UI → daemon：设置防拆使能。
     SetAntiDismantle { enabled: bool },
+    /// UI → daemon：查询 UI 设置位域。
+    GetSettings,
+    /// UI → daemon：写入 UI 设置位域。
+    SetSettings { flags: u8 },
 
     Ok,
     Error { code: u16, message: String },
     Pong(u32),
     /// daemon → UI：密码校验结果（0=用户，1=管理员，2=超级管理员）。
     AuthLevel(u8),
+    /// daemon → UI：UI 设置位域（bit0 自检/bit1 授权/bit2 密码开机/bit3 防拆）。
+    Settings { flags: u8 },
 }
 
 impl Message {
@@ -177,10 +189,13 @@ impl Message {
             Self::SetAdminPassword { .. } => MessageType::CmdSetAdminPassword,
             Self::EnterLicenseTail { .. } => MessageType::CmdEnterLicenseTail,
             Self::SetAntiDismantle { .. } => MessageType::CmdSetAntiDismantle,
+            Self::GetSettings => MessageType::CmdGetSettings,
+            Self::SetSettings { .. } => MessageType::CmdSetSettings,
             Self::Ok => MessageType::RespOk,
             Self::Error { .. } => MessageType::RespError,
             Self::Pong(_) => MessageType::RespPong,
             Self::AuthLevel(_) => MessageType::RespAuthLevel,
+            Self::Settings { .. } => MessageType::RespSettings,
         }
     }
 
@@ -216,6 +231,8 @@ impl Message {
             }
             Self::EnterLicenseTail { digits } => put_bounded_string(writer, digits),
             Self::SetAntiDismantle { enabled } => writer.put_bool(*enabled),
+            Self::GetSettings => {}
+            Self::SetSettings { flags } | Self::Settings { flags } => writer.put_u8(*flags),
             Self::Ok => {}
             Self::Error { code, message } => {
                 writer.put_u16(*code);
@@ -281,6 +298,8 @@ impl Message {
             MessageType::CmdSetAntiDismantle => Self::SetAntiDismantle {
                 enabled: reader.bool()?,
             },
+            MessageType::CmdGetSettings => Self::GetSettings,
+            MessageType::CmdSetSettings => Self::SetSettings { flags: reader.u8()? },
             MessageType::RespOk => Self::Ok,
             MessageType::RespError => Self::Error {
                 code: reader.u16()?,
@@ -288,6 +307,7 @@ impl Message {
             },
             MessageType::RespPong => Self::Pong(reader.u32()?),
             MessageType::RespAuthLevel => Self::AuthLevel(reader.u8()?),
+            MessageType::RespSettings => Self::Settings { flags: reader.u8()? },
         })
     }
 }

@@ -166,6 +166,7 @@ export type ServerMessage =
   | { type: "pong"; nonce: number }
   | { type: "ok" }
   | { type: "authLevel"; level: number }
+  | { type: "settings"; flags: number }
   | { type: "error"; code: number; message: string };
 
 /** UI 可以发送的消息。 */
@@ -180,7 +181,9 @@ export type ClientMessage =
   | { type: "verifyPassword"; password: string }
   | { type: "setAdminPassword"; oldPassword: string; newPassword: string }
   | { type: "enterLicenseTail"; digits: string }
-  | { type: "setAntiDismantle"; enabled: boolean };
+  | { type: "setAntiDismantle"; enabled: boolean }
+  | { type: "getSettings" }
+  | { type: "setSettings"; flags: number };
 
 /** 帧头解析结果。 */
 export interface FrameHeader {
@@ -215,10 +218,13 @@ const MESSAGE_TYPES = {
   cmdSetAdminPassword: 0x0307,
   cmdEnterLicenseTail: 0x0308,
   cmdSetAntiDismantle: 0x0309,
+  cmdGetSettings: 0x030a,
+  cmdSetSettings: 0x030b,
   respOk: 0x0400,
   respError: 0x0401,
   respPong: 0x0402,
   respAuthLevel: 0x0403,
+  respSettings: 0x0404,
 } as const;
 
 const SOUND_IDS: Record<SoundId, number> = {
@@ -515,6 +521,9 @@ export function decodeFrame(bytes: Uint8Array): { header: FrameHeader; message: 
     case MESSAGE_TYPES.respAuthLevel:
       message = { type: "authLevel", level: reader.u8() };
       break;
+    case MESSAGE_TYPES.respSettings:
+      message = { type: "settings", flags: reader.u8() };
+      break;
     default:
       throw new Error(`未知消息类型：0x${header.messageType.toString(16)}`);
   }
@@ -690,6 +699,13 @@ export function encodeClient(message: ClientMessage, sequence: number): Uint8Arr
     case "setAntiDismantle":
       messageType = MESSAGE_TYPES.cmdSetAntiDismantle;
       writer.u8(message.enabled ? 1 : 0);
+      break;
+    case "getSettings":
+      messageType = MESSAGE_TYPES.cmdGetSettings;
+      break;
+    case "setSettings":
+      messageType = MESSAGE_TYPES.cmdSetSettings;
+      writer.u8(message.flags);
       break;
   }
   const payload = writer.finish();

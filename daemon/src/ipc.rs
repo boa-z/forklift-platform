@@ -216,10 +216,12 @@ fn serve_client(
             Message::Ping(nonce) => {
                 send_message(&mut connection, &Message::Pong(nonce));
             }
-            // 授权类命令由服务循环处理并自行应答（AuthLevel/Ok/Error）。
+            // 授权/设置类命令由服务循环处理并自行应答（AuthLevel/Settings/Ok/Error）。
             Message::VerifyPassword { .. }
             | Message::SetAdminPassword { .. }
-            | Message::EnterLicenseTail { .. } => {
+            | Message::EnterLicenseTail { .. }
+            | Message::GetSettings
+            | Message::SetSettings { .. } => {
                 if command_tx
                     .send(ClientCommand {
                         client_id: id,

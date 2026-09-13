@@ -110,6 +110,7 @@ fn main() -> ExitCode {
         volume: 70,
         mcu_enable: true,
         auth_path: std::env::temp_dir().join("forklift-sim-auth.toml"),
+        settings_path: std::env::temp_dir().join("forklift-sim-settings.toml"),
     };
     log::info!(target: "sim", "模拟器启动：socket={}", args.socket.display());
     Service::new(config, server, commands, backends).run()

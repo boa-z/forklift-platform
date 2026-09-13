@@ -165,6 +165,7 @@ fn spawn_service_with_mcu(tag: &str, polls: Arc<AtomicU32>) -> (PathBuf, McuProb
         volume: 70,
         mcu_enable: true,
         auth_path: socket_path(tag).with_extension("auth.toml"),
+        settings_path: socket_path(tag).with_extension("settings.toml"),
     };
     thread::spawn(move || Service::new(config, server, commands, backends).run());
     (path, probe)
@@ -315,6 +316,47 @@ fn swipe_and_password_flow_over_ipc() {
     drop(client);
     std::fs::remove_file(&path).ok();
     let _ = std::fs::remove_file(&auth_path);
+}
+
+/// UI 设置位域：默认值、写入与回读。
+#[test]
+fn settings_round_trip_over_ipc() {
+    let polls = Arc::new(AtomicU32::new(0));
+    let (path, _probe) = spawn_service_with_mcu("settings", Arc::clone(&polls));
+    let settings_path = socket_path("settings").with_extension("settings.toml");
+    let _ = std::fs::remove_file(&settings_path);
+
+    let mut client = Client::connect(&path).expect("连接服务");
+    client.handshake().expect("握手");
+
+    // 默认：授权使能开启（bit1）。
+    client.send(&Message::GetSettings).expect("查询设置");
+    let flags = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Settings { flags } => Some(*flags),
+        _ => None,
+    });
+    assert_eq!(flags, 1 << 1);
+
+    // 写入“自检 + 防拆”并确认回读一致。
+    client
+        .send(&Message::SetSettings {
+            flags: (1 << 0) | (1 << 3),
+        })
+        .expect("写设置");
+    wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Ok => Some(()),
+        _ => None,
+    });
+    client.send(&Message::GetSettings).expect("再次查询");
+    let flags = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Settings { flags } => Some(*flags),
+        _ => None,
+    });
+    assert_eq!(flags, (1 << 0) | (1 << 3));
+
+    drop(client);
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&settings_path);
 }
 
 /// 协议版本不符时握手必须失败。

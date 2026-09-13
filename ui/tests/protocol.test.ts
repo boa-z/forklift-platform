@@ -104,6 +104,10 @@ describe("协议金样（由 Rust protocol crate 生成）", () => {
     const level = decodeFrame(frame("auth_level")).message;
     if (level.type !== "authLevel") throw new Error("消息类型错误");
     expect(level.level).toBe(2);
+
+    const settings = decodeFrame(frame("settings")).message;
+    if (settings.type !== "settings") throw new Error("消息类型错误");
+    expect(settings.flags).toBe(0b1010);
   });
 
   test("客户端消息回编码与金样逐字节一致", () => {
@@ -138,6 +142,10 @@ describe("协议金样（由 Rust protocol crate 生成）", () => {
     expect(toHex(encodeClient({ type: "swipeReply", status: 0 }, 21))).toBe(hex("swipe_reply"));
     expect(toHex(encodeClient({ type: "setAntiDismantle", enabled: true }, 22))).toBe(
       hex("set_anti_dismantle"),
+    );
+    expect(toHex(encodeClient({ type: "getSettings" }, 23))).toBe(hex("get_settings"));
+    expect(toHex(encodeClient({ type: "setSettings", flags: 0b1010 }, 24))).toBe(
+      hex("set_settings"),
     );
   });
 });

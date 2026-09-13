@@ -88,6 +88,14 @@ export interface Platform {
     /** 订阅模组 RTC 时间。 */
     onRtc(listener: (rtc: RtcTime) => void): () => void;
   };
+  settings: {
+    /** 读取 UI 设置位域（bit0 自检/bit1 授权/bit2 密码开机/bit3 防拆）。 */
+    get(): Promise<number>;
+    /** 写入 UI 设置位域（daemon 持久化）。 */
+    set(flags: number): void;
+    /** 订阅设置变化。 */
+    subscribe(listener: (flags: number) => void): () => void;
+  };
   /** 发送 PING 并等待 PONG，返回往返时的 nonce。 */
   ping(nonce?: number): Promise<number>;
 }
@@ -99,6 +107,7 @@ export function createPlatform(transport: Transport): Platform {
   let systemState: SystemState | undefined;
   let authState: AuthState = { level: 0, authorized: false };
   let antiDismantleState: AntiDismantleState = { enabled: false, alarm: false };
+  let settingsFlags: number | undefined;
   let connected = false;
 
   const vehicleListeners = new Set<(state: VehicleState) => void>();
@@ -109,8 +118,10 @@ export function createPlatform(transport: Transport): Platform {
   const antiDismantleListeners = new Set<(state: AntiDismantleState) => void>();
   const swipeListeners = new Set<(report: SwipeReportMessage) => void>();
   const rtcListeners = new Set<(rtc: RtcTime) => void>();
+  const settingsListeners = new Set<(flags: number) => void>();
   const pendingPings = new Map<number, (nonce: number) => void>();
   let pendingVerify: ((level: number) => void) | undefined;
+  let pendingSettings: ((flags: number) => void) | undefined;
   let pendingAdmin: { resolve: () => void; reject: (error: Error) => void } | undefined;
 
   // 握手期间由统一分发处理 SERVER_VERSION，不覆盖 onMessage 订阅。
@@ -178,6 +189,14 @@ export function createPlatform(transport: Transport): Platform {
       case "rtc":
         for (const listener of rtcListeners) listener(message.rtc);
         break;
+      case "settings": {
+        settingsFlags = message.flags;
+        const pending = pendingSettings;
+        pendingSettings = undefined;
+        pending?.(message.flags);
+        for (const listener of settingsListeners) listener(message.flags);
+        break;
+      }
       case "ok": {
         const pending = pendingAdmin;
         pendingAdmin = undefined;
@@ -372,6 +391,33 @@ export function createPlatform(transport: Transport): Platform {
       onRtc(listener) {
         rtcListeners.add(listener);
         return () => rtcListeners.delete(listener);
+      },
+    },
+    settings: {
+      get() {
+        return new Promise((resolve, reject) => {
+          if (!connected) {
+            reject(new Error("平台尚未连接"));
+            return;
+          }
+          const timer = setTimeout(() => {
+            pendingSettings = undefined;
+            reject(new Error("读取设置超时"));
+          }, 3000);
+          pendingSettings = (flags) => {
+            clearTimeout(timer);
+            resolve(flags);
+          };
+          transport.send({ type: "getSettings" });
+        });
+      },
+      set(flags) {
+        send({ type: "setSettings", flags });
+      },
+      subscribe(listener) {
+        settingsListeners.add(listener);
+        if (settingsFlags !== undefined) listener(settingsFlags);
+        return () => settingsListeners.delete(listener);
       },
     },
     ping(nonce = 0x0102_0304): Promise<number> {

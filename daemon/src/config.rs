@@ -43,6 +43,8 @@ pub struct Config {
     pub mcu_baud: u32,
     /// 管理员密码等授权状态的持久化路径。
     pub auth_path: PathBuf,
+    /// UI 设置位域的持久化路径。
+    pub settings_path: PathBuf,
     pub log_level: String,
 }
 
@@ -63,6 +65,7 @@ impl Default for Config {
             mcu_device: PathBuf::from("/dev/ttyS1"),
             mcu_baud: 115200,
             auth_path: PathBuf::from("/var/lib/forklift/auth.toml"),
+            settings_path: PathBuf::from("/var/lib/forklift/settings.toml"),
             log_level: "info".to_string(),
         }
     }
