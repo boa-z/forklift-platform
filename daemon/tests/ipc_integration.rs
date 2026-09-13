@@ -262,22 +262,23 @@ fn swipe_and_password_flow_over_ipc() {
         phone: [0; 6],
         driver_license: [0; 3],
         ic_license: [0; 3],
+        config: 0,
     };
     probe.push(
         Frame::new(mcu::CMD_SET, mcu::index::SWIPE_REPORT, report.encode()).expect("构造刷卡帧"),
     );
 
-    // 2) UI 收到刷卡事件与已授权状态。
-    let status = wait_for(&mut client, Duration::from_secs(3), |message| match message {
-        Message::SwipeReport(report) => Some(report.status),
-        _ => None,
-    });
-    assert_eq!(status, 1);
+    // 2) UI 先收到已授权状态，再收到刷卡事件（daemon 按此顺序发布）。
     let authorized = wait_for(&mut client, Duration::from_secs(3), |message| match message {
         Message::AuthState(state) => Some(state.authorized),
         _ => None,
     });
     assert!(authorized);
+    let status = wait_for(&mut client, Duration::from_secs(3), |message| match message {
+        Message::SwipeReport(report) => Some(report.status),
+        _ => None,
+    });
+    assert_eq!(status, 1);
 
     // 3) 模组收到刷卡应答（0）与刷卡开机上报。
     let reply = wait_for_sent(&probe, Duration::from_secs(3), mcu::index::SWIPE_REPLY);

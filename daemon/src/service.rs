@@ -265,6 +265,8 @@ impl Service {
                 self.auth.set_anti_dismantle(true);
                 self.send_mcu(mcu::CMD_SET, mcu::index::ANTI_DISMANTLE, vec![1]);
             }
+            // 查询模组功能配置（双重认证/刷卡关闭位），供授权逻辑与日志使用。
+            self.send_mcu(mcu::CMD_SET, mcu::index::MODULE_CONFIG, vec![0; 4]);
         }
         if now.saturating_sub(self.last_rtc_query_ms) >= 1_000 {
             self.last_rtc_query_ms = now;
@@ -289,8 +291,38 @@ impl Service {
 
     /// 分发一条模组上报帧（刷卡/防拆/RTC/功能配置/沉默期）。
     fn handle_mcu_frame(&mut self, frame: &mcu::Frame) {
+        // 周期帧（RTC/工作模式/实时数据）降到 debug，避免刷爆 /var/log。
+        let quiet = frame.index == mcu::index::RTC
+            || frame.index == mcu::index::WORK_MODE_REPORT
+            || frame.index == mcu::index::REALTIME_DATA;
+        if quiet {
+            log::debug!(
+                target: "mcu",
+                "帧 cmd=0x{:02x} main=0x{:04x} sub=0x{:02x} len={} data={:02x?}",
+                frame.cmd,
+                frame.index.main,
+                frame.index.sub,
+                frame.data.len(),
+                frame.data
+            );
+        } else {
+            log::info!(
+                target: "mcu",
+                "收到帧 cmd=0x{:02x} main=0x{:04x} sub=0x{:02x} len={} data={:02x?}",
+                frame.cmd,
+                frame.index.main,
+                frame.index.sub,
+                frame.data.len(),
+                frame.data
+            );
+        }
         match (frame.cmd, frame.index) {
             (mcu::CMD_SET, mcu::index::SWIPE_REPORT) => self.on_swipe_frame(&frame.data),
+            (mcu::CMD_SET, mcu::index::WORK_MODE_REPORT) => {
+                // 参考工程要求应答工作模式，否则模组持续重发。
+                let data = frame.data.clone();
+                self.send_mcu(mcu::CMD_SET, mcu::index::WORK_MODE_REPORT, data);
+            }
             (mcu::CMD_SET, mcu::index::ANTI_DISMANTLE_REPORT) => {
                 let alarm = frame.data.first().copied().unwrap_or(0) != 0;
                 self.auth.set_anti_dismantle_alarm(alarm);
@@ -312,9 +344,21 @@ impl Service {
                 }
             }
             (mcu::CMD_QUERY_RESP, mcu::index::MODULE_CONFIG)
-            | (mcu::CMD_SET_RESP, mcu::index::MODULE_CONFIG) => {
+            | (mcu::CMD_SET_RESP, mcu::index::MODULE_CONFIG)
+            | (mcu::CMD_SET, mcu::index::MODULE_CONFIG) => {
                 if let Ok(config) = mcu::ModuleConfig::decode(&frame.data) {
                     self.auth.dual_auth = config.dual_auth;
+                    log::info!(
+                        target: "mcu",
+                        "模组配置 auth_type={} dual_auth={} swipe_off={} drive_license={} ic_license={}",
+                        config.auth_type,
+                        config.dual_auth,
+                        config.swipe_off,
+                        config.drive_license,
+                        config.ic_license
+                    );
+                } else {
+                    log::warn!(target: "mcu", "模组配置解码失败（len={}）", frame.data.len());
                 }
             }
             (mcu::CMD_QUERY_RESP, mcu::index::SILENT_TIME)
@@ -329,17 +373,35 @@ impl Service {
 
     /// 刷卡上报：更新授权状态、回复模组，授权通过后上报开机方式。
     fn on_swipe_frame(&mut self, data: &[u8]) {
-        let Ok(report) = mcu::SwipeReport::decode(data) else {
-            return;
+        let report = match mcu::SwipeReport::decode(data) {
+            Ok(report) => report,
+            Err(error) => {
+                log::warn!(
+                    target: "auth",
+                    "刷卡上报解码失败（len={}）：{error}",
+                    data.len()
+                );
+                return;
+            }
         };
+        // 双重认证以模组功能配置（MODULE_CONFIG）为准；线上 config 字节是
+        // 本地状态字段，模组实际以 0xFF 填充（参考工程不读取它）。
         let outcome = self.auth.on_swipe(&report);
+        log::info!(
+            target: "auth",
+            "刷卡 status={} card={:02x?} name={:?} 判定={outcome:?}",
+            report.status,
+            report.card,
+            String::from_utf8_lossy(&report.name)
+        );
+        // 先发授权状态再发刷卡事件：UI 在刷卡回调里同步读取授权状态。
+        self.publish_auth();
         self.server.publish(&Message::SwipeReport(report.clone()));
         let reply_status: u8 = match outcome {
             SwipeOutcome::Authorized | SwipeOutcome::NeedsLicenseTail => 0,
             SwipeOutcome::Reported(_) => 1,
         };
         self.send_mcu(mcu::CMD_SET, mcu::index::SWIPE_REPLY, vec![reply_status]);
-        self.publish_auth();
         if matches!(outcome, SwipeOutcome::Authorized) {
             let kind = if report.is_bluetooth() {
                 mcu::PowerOnType::Bluetooth

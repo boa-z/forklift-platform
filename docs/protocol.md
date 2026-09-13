@@ -54,7 +54,7 @@ client                          daemon
 | 0x0200 | `EVENT_FAULT_RAISED` | D→C | `Fault` |
 | 0x0201 | `EVENT_FAULT_CLEARED` | D→C | `Fault` |
 | 0x0202 | `EVENT_CONNECTIVITY` | D→C | `ConnectivityEvent` |
-| 0x0203 | `EVENT_SWIPE_REPORT` | D→C | 35B 刷卡上报（status/index/name/card/id/phone/驾照/IC 证） |
+| 0x0203 | `EVENT_SWIPE_REPORT` | D→C | 37B packed 刷卡上报（u16 status/index/name/card/id/phone/驾照/IC 证/config） |
 | 0x0204 | `EVENT_AUTH_STATE` | D→C | `u8` level（0 用户/1 管理员/2 超级管理员）+ `bool` authorized |
 | 0x0205 | `EVENT_ANTI_DISMANTLE` | D→C | `bool` enabled + `bool` alarm |
 | 0x0206 | `EVENT_RTC` | D→C | 6B：YY MM DD hh mm ss |

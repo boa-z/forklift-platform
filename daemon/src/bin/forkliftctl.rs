@@ -8,7 +8,7 @@
 //!   forkliftctl [--socket PATH] set-password <旧密码> <新密码>
 //!   forkliftctl [--socket PATH] swipe <status>
 //!   forkliftctl [--socket PATH] power-on <kind>
-//!   forkliftctl [--socket PATH] watch [秒数]
+//!   forkliftctl [--socket PATH] watch [秒数] [--all]
 
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
@@ -156,17 +156,33 @@ fn main() -> ExitCode {
             }
         }
         "watch" => {
+            let all = args.iter().any(|text| text == "--all");
             let seconds = args
-                .get(1)
-                .and_then(|text| text.parse::<u64>().ok())
+                .iter()
+                .skip(1)
+                .find_map(|text| text.parse::<u64>().ok())
                 .unwrap_or(5);
+            if all {
+                println!("watch {seconds}s（全部消息）");
+            } else {
+                println!("watch {seconds}s（仅事件：刷卡/授权/防拆/RTC/故障变化；--all 看全部）");
+            }
+            let mut state_frames = 0u64;
             let deadline = Instant::now() + Duration::from_secs(seconds);
             while Instant::now() < deadline {
                 let remaining = deadline.saturating_duration_since(Instant::now());
                 match client.recv_timeout(remaining.min(Duration::from_secs(1))) {
-                    Ok((_, message)) => println!("{message:?}"),
+                    Ok((_, message)) => match message {
+                        Message::VehicleState(_) | Message::Faults(_) if !all => {
+                            state_frames += 1;
+                        }
+                        other => println!("{other:?}"),
+                    },
                     Err(_) => continue,
                 }
+            }
+            if !all {
+                println!("（已过滤 {state_frames} 条状态/故障快照）");
             }
             Ok(())
         }

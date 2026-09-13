@@ -111,6 +111,7 @@ fn main() {
                 phone: [0; 6],
                 driver_license: [0; 3],
                 ic_license: [0; 3],
+                config: 0,
             }),
         ),
     ));

@@ -268,10 +268,11 @@ impl SwipeStatus {
     }
 }
 
-/// 刷卡上报（模组→仪表，线上 35B；`config` 来自功能配置上报）。
+/// 刷卡上报（模组→仪表，packed 37B，字段顺序与参考 C 结构一致）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SwipeReport {
-    pub status: u8,
+    /// 状态（`u16`，取值见 `SwipeStatus`）。
+    pub status: u16,
     pub index: u8,
     pub name: [u8; 8],
     pub card: [u8; 4],
@@ -279,48 +280,66 @@ pub struct SwipeReport {
     pub phone: [u8; 6],
     pub driver_license: [u8; 3],
     pub ic_license: [u8; 3],
+    /// 本地状态位（bit0 = 双重认证）；短格式下为 0。
+    pub config: u8,
 }
 
-/// 刷卡上报线格式长度。
-pub const SWIPE_REPORT_LEN: usize = 35;
+/// 刷卡上报线格式长度：与参考 `struct COMMONSERIALPARSESWIPEREPORT`
+/// （`#pragma pack(1)`）一致，共 37 字节。
+pub const SWIPE_REPORT_LEN: usize = 37;
+/// 参考 BLE 模块曾发送的短格式：`u8` 状态且无 `config`（线上 35B）。
+pub const SWIPE_REPORT_LEGACY_LEN: usize = 35;
 
 impl SwipeReport {
-    /// 解码 35B 上报载荷。
+    /// 解码刷卡上报：37B（参考结构，`u16` 状态）或 35B 短格式（`u8` 状态）。
+    ///
+    /// 与参考 `CommonSerialParse_SwipeReportReply` 的 memcpy 语义一致：
+    /// 短格式按前缀填充，缺失字段（`config` 等）为 0。
     pub fn decode(data: &[u8]) -> Result<Self, McuError> {
-        if data.len() != SWIPE_REPORT_LEN {
-            return Err(McuError::LengthMismatch {
-                expected: SWIPE_REPORT_LEN,
-                found: data.len(),
-            });
-        }
+        let (status, index, base, config) = match data.len() {
+            SWIPE_REPORT_LEN => (
+                u16::from_le_bytes([data[0], data[1]]),
+                data[2],
+                3usize,
+                data[SWIPE_REPORT_LEN - 1],
+            ),
+            SWIPE_REPORT_LEGACY_LEN => (data[0] as u16, data[1], 2usize, 0),
+            other => {
+                return Err(McuError::LengthMismatch {
+                    expected: SWIPE_REPORT_LEN,
+                    found: other,
+                });
+            }
+        };
         let mut name = [0u8; 8];
         let mut card = [0u8; 4];
         let mut id = [0u8; 9];
         let mut phone = [0u8; 6];
         let mut driver_license = [0u8; 3];
         let mut ic_license = [0u8; 3];
-        name.copy_from_slice(&data[2..10]);
-        card.copy_from_slice(&data[10..14]);
-        id.copy_from_slice(&data[14..23]);
-        phone.copy_from_slice(&data[23..29]);
-        driver_license.copy_from_slice(&data[29..32]);
-        ic_license.copy_from_slice(&data[32..35]);
+        name.copy_from_slice(&data[base..base + 8]);
+        card.copy_from_slice(&data[base + 8..base + 12]);
+        id.copy_from_slice(&data[base + 12..base + 21]);
+        phone.copy_from_slice(&data[base + 21..base + 27]);
+        driver_license.copy_from_slice(&data[base + 27..base + 30]);
+        ic_license.copy_from_slice(&data[base + 30..base + 33]);
         Ok(Self {
-            status: data[0],
-            index: data[1],
+            status,
+            index,
             name,
             card,
             id,
             phone,
             driver_license,
             ic_license,
+            config,
         })
     }
 
-    /// 编码为 35B 上报载荷。
+    /// 编码为 37B packed 载荷（与参考结构逐字节一致）。
     pub fn encode(&self) -> Vec<u8> {
         let mut data = Vec::with_capacity(SWIPE_REPORT_LEN);
-        data.push(self.status);
+        data.extend_from_slice(&self.status.to_le_bytes());
         data.push(self.index);
         data.extend_from_slice(&self.name);
         data.extend_from_slice(&self.card);
@@ -328,6 +347,7 @@ impl SwipeReport {
         data.extend_from_slice(&self.phone);
         data.extend_from_slice(&self.driver_license);
         data.extend_from_slice(&self.ic_license);
+        data.push(self.config);
         data
     }
 
@@ -652,10 +672,59 @@ mod tests {
             phone: [0; 6],
             driver_license: [0; 3],
             ic_license: [0; 3],
+            config: 0,
         };
         let decoded = SwipeReport::decode(&report.encode()).unwrap();
         assert_eq!(decoded, report);
         assert!(!decoded.is_bluetooth());
+    }
+
+    #[test]
+    fn swipe_report_decodes_extended_37_bytes() {
+        let report = SwipeReport {
+            status: 1,
+            index: 3,
+            name: *b"ZHANG SA",
+            card: [0x11, 0x22, 0x33, 0x44],
+            id: [0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x34, 0x56, 0x78],
+            phone: [0; 6],
+            driver_license: [0; 3],
+            ic_license: [0; 3],
+            config: 0x01,
+        };
+        let data = report.encode();
+        assert_eq!(data.len(), SWIPE_REPORT_LEN);
+        // 参考结构：u16 status 在前。
+        assert_eq!(&data[0..2], &[0x01, 0x00]);
+        assert_eq!(data[2], 3);
+        let decoded = SwipeReport::decode(&data).expect("37B 解码");
+        assert_eq!(decoded, report);
+        assert_eq!(decoded.config, 0x01);
+        assert_eq!(decoded.license_tail_digits(false), vec![5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn swipe_report_decodes_legacy_35_bytes() {
+        let report = SwipeReport {
+            status: 1,
+            index: 3,
+            name: *b"ZHANG SA",
+            card: [0x11, 0x22, 0x33, 0x44],
+            id: [0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x34, 0x56, 0x78],
+            phone: [0; 6],
+            driver_license: [0; 3],
+            ic_license: [0; 3],
+            config: 0,
+        };
+        let mut data = report.encode();
+        data.remove(1); // 去掉 u16 status 的高字节
+        data.pop(); // 去掉 config
+        assert_eq!(data.len(), SWIPE_REPORT_LEGACY_LEN);
+        let decoded = SwipeReport::decode(&data).expect("35B 解码");
+        assert_eq!(decoded.status, 1);
+        assert_eq!(decoded.index, 3);
+        assert_eq!(decoded.card, report.card);
+        assert_eq!(decoded.config, 0);
     }
 
     #[test]
@@ -669,6 +738,7 @@ mod tests {
             phone: [0; 6],
             driver_license: [0; 3],
             ic_license: [0; 3],
+            config: 0,
         };
         assert!(report.is_bluetooth());
         // 9 字节 BCD 共 18 位：末 4 位为第 15-18 位（nibble 5,6,7,8）。

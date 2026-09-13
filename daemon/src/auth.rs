@@ -146,7 +146,7 @@ impl AuthManager {
 
     /// 处理刷卡上报；返回授权/双重认证/上报状态三种结果。
     pub fn on_swipe(&mut self, report: &SwipeReport) -> SwipeOutcome {
-        let status = SwipeStatus::from_u8(report.status).unwrap_or(SwipeStatus::Failed);
+        let status = SwipeStatus::from_u8(report.status as u8).unwrap_or(SwipeStatus::Failed);
         match status {
             SwipeStatus::Authorized => {
                 if self.dual_auth {
@@ -223,7 +223,7 @@ mod tests {
     /// 构造一帧刷卡上报。
     fn swipe(status: u8, id_tail: [u8; 9]) -> SwipeReport {
         SwipeReport {
-            status,
+            status: status as u16,
             index: 0,
             name: [0; 8],
             card: [1, 2, 3, 4],
@@ -231,6 +231,7 @@ mod tests {
             phone: [0; 6],
             driver_license: [0; 3],
             ic_license: [0; 3],
+            config: 0,
         }
     }
 

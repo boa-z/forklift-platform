@@ -382,7 +382,7 @@ fn build_swipe_frame(step: &McuSwipeStep) -> Result<Frame, McuError> {
         encode_bcd_id(text, &mut id);
     }
     let report = mcu::SwipeReport {
-        status: step.status,
+        status: step.status as u16,
         index: 0,
         name,
         card,
@@ -390,6 +390,7 @@ fn build_swipe_frame(step: &McuSwipeStep) -> Result<Frame, McuError> {
         phone: [0; 6],
         driver_license: [0; 3],
         ic_license: [0; 3],
+        config: 0,
     };
     Frame::new(mcu::CMD_SET, mcu::index::SWIPE_REPORT, report.encode())
 }
