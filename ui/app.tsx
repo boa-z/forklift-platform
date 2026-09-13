@@ -8,9 +8,12 @@ import { View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { TabId } from "./src/nav/nav";
+import { initialBootStage, stageAfterSelfCheck, type BootStage } from "./src/boot";
 import { AlarmEngine, type AlarmInputs } from "./src/platform/alarms";
 import { createPlatform, MockTransport } from "./src/platform";
 import { createDeviceEffects } from "./src/platform/effects";
+import { getAuthorizationEnabled, getSelfCheckEnabled } from "./src/settings";
+import AuthorizationScreen from "./src/screens/authorization/AuthorizationScreen";
 import CameraScreen from "./src/screens/camera/CameraScreen";
 import FaultScreen from "./src/screens/fault/FaultScreen";
 import ChargingScreen from "./src/screens/charging/ChargingScreen";
@@ -30,7 +33,9 @@ export default function ForkliftApp() {
     },
   });
   const platform = createPlatform(transport);
-  const [booted, setBooted] = createSignal(false);
+  const [stage, setStage] = createSignal<BootStage>(
+    initialBootStage(getSelfCheckEnabled(), getAuthorizationEnabled()),
+  );
   const [tab, setTab] = createSignal<TabId>("home");
   const [charging, setCharging] = createSignal(false);
   const [removed, setRemoved] = createSignal(false);
@@ -108,8 +113,15 @@ export default function ForkliftApp() {
       <Match when={charging()}>
         <ChargingScreen platform={platform} />
       </Match>
-      <Match when={!booted()}>
-        <SelfCheckScreen platform={platform} onEnter={() => setBooted(true)} />
+      <Match when={stage() === "selfcheck"}>
+        <SelfCheckScreen
+          platform={platform}
+          onEnter={() => setStage(stageAfterSelfCheck(getAuthorizationEnabled()))}
+        />
+      </Match>
+      {/* 授权屏（默认开启）：刷卡/密码授权通过后进入主界面 */}
+      <Match when={stage() === "authorization"}>
+        <AuthorizationScreen platform={platform} onAuthorized={() => setStage("main")} />
       </Match>
       {/* 相机屏（主屏摄像头按钮进入） */}
       <Match when={cameraOpen()}>

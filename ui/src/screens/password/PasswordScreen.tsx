@@ -2,7 +2,7 @@
 // 12 键键盘（1-9、退格、0、确认），输入以 `*` 掩码显示；
 // 确认时由调用方校验（返回 false 清空重输），取消返回上一屏。
 
-import { createSignal, For } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
 
 import ReturnButton from "../../components/ReturnButton";
@@ -16,15 +16,18 @@ import { PASSWORD, PASSWORD_KEY_COUNT, keyAction, keyPosition } from "./layout";
 /** 密码屏属性。 */
 export interface PasswordScreenProps {
   platform: Platform;
-  /** 确认回调：返回 true 由调用方关闭，false 清空重输。 */
-  onSubmit: (value: string) => boolean;
+  /** 确认回调：返回 true 由调用方关闭，false 清空重输（可为异步校验）。 */
+  onSubmit: (value: string) => boolean | Promise<boolean>;
   /** 取消回调。 */
   onCancel: () => void;
+  /** 提示文字（可选；用于改密/授权等流程）。 */
+  prompt?: string;
 }
 
 /** 密码屏组件。 */
 export default function PasswordScreen(props: PasswordScreenProps) {
   const [value, setValue] = createSignal("");
+  const [busy, setBusy] = createSignal(false);
 
   /** 按键动作。 */
   const pressKey = (index: number): void => {
@@ -35,7 +38,17 @@ export default function PasswordScreen(props: PasswordScreenProps) {
       return;
     }
     if (action === "confirm") {
-      if (!props.onSubmit(value())) setValue("");
+      if (busy()) return;
+      const result = props.onSubmit(value());
+      if (typeof result === "boolean") {
+        if (!result) setValue("");
+        return;
+      }
+      setBusy(true);
+      void result.then((accepted) => {
+        setBusy(false);
+        if (!accepted) setValue("");
+      });
       return;
     }
     if (value().length < PASSWORD.maxLength) setValue(value() + action);
@@ -49,6 +62,13 @@ export default function PasswordScreen(props: PasswordScreenProps) {
           props.onCancel();
         }}
       />
+
+      {/* 提示文字（可选） */}
+      <Show when={props.prompt !== undefined}>
+        <Text class={CLASS.screenTitle} style={{ translateX: PASSWORD.prompt.x, translateY: PASSWORD.prompt.y, width: PASSWORD.prompt.w, height: PASSWORD.prompt.h }}>
+          {props.prompt ?? ""}
+        </Text>
+      </Show>
 
       {/* 输入框（掩码显示） */}
       <View class="absolute left-0 top-0" style={{ translateX: PASSWORD.textArea.x, translateY: PASSWORD.textArea.y, width: PASSWORD.textArea.w, height: PASSWORD.textArea.h }}>

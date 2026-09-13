@@ -3,18 +3,6 @@
 import { describe, expect, test } from "bun:test";
 
 import { keyAction, keyPosition } from "../src/screens/password/layout";
-import { checkPassword } from "../src/screens/password/model";
-
-describe("密码校验", () => {
-  test("超级密码优先，管理员密码其次，空密码无权限", () => {
-    expect(checkPassword("", "1234")).toBe("none");
-    expect(checkPassword("32431", "")).toBe("super");
-    expect(checkPassword("32431", "32431")).toBe("super");
-    expect(checkPassword("1234", "1234")).toBe("admin");
-    expect(checkPassword("9999", "1234")).toBe("none");
-    expect(checkPassword("1234", "")).toBe("none");
-  });
-});
 
 describe("键盘布局", () => {
   test("12 键位置与动作", () => {

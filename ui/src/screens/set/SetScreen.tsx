@@ -8,8 +8,16 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 import BottomNav from "../../components/BottomNav";
 import ReturnButton from "../../components/ReturnButton";
 import PasswordScreen from "../password/PasswordScreen";
-import { checkPassword } from "../password/model";
-import { getAdminPassword, setAdminPassword } from "../../settings";
+import {
+  getAuthorizationEnabled,
+  getPasswordBootEnabled,
+  getSelfCheckEnabled,
+  setAuthLevel,
+  setAuthorizationEnabled,
+  setPasswordBootEnabled,
+  setSelfCheckEnabled,
+  subscribeSettings,
+} from "../../settings";
 import ScreenBackground from "../../components/ScreenBackground";
 import Slider from "../../components/Slider";
 import {
@@ -40,15 +48,23 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
   const [dialog, setDialog] = createSignal<DialogId>("none");
   const [brightness, setBrightness] = createSignal<number>(SET_DIALOG.initialBrightness);
   const [volume, setVolume] = createSignal<number>(SET_DIALOG.initialVolume);
-  // 密码屏：kind 标记用途；高级设置需要管理员/超级密码，设置管理员密码直接写入。
-  const [passwordKind, setPasswordKind] = createSignal<"advanced" | "admin" | null>(null);
-  const [adminAuthed, setAdminAuthed] = createSignal(false);
-  // 语言切换后刷新本屏文案（其他屏在切入时重新挂载）。
+  // 入口密码：null = 未验证；0/1/2 为验证后的权限级别（参考：输错也以 0 级进入）。
+  const [authLevel, setAuthLevelSignal] = createSignal<number | null>(null);
+  // 修改管理员密码的三步流程；null = 未进行。
+  const [passwordKind, setPasswordKind] = createSignal<"adminOld" | "adminNew" | "adminConfirm" | null>(null);
+  const [adminOld, setAdminOld] = createSignal("");
+  const [adminFirst, setAdminFirst] = createSignal("");
+  // 语言切换与设置开关变化后刷新本屏。
   const [langVersion, setLangVersion] = createSignal(0);
+  const [settingsVersion, setSettingsVersion] = createSignal(0);
 
   onMount(() => {
-    const unsubscribe = subscribeLanguage(() => setLangVersion((version) => version + 1));
-    onCleanup(unsubscribe);
+    const unsubscribeLanguage = subscribeLanguage(() => setLangVersion((version) => version + 1));
+    const unsubscribeSettings = subscribeSettings(() => setSettingsVersion((version) => version + 1));
+    onCleanup(() => {
+      unsubscribeLanguage();
+      unsubscribeSettings();
+    });
   });
 
   /** 读取当前语言文案（依赖语言版本信号，切换后本屏刷新）。 */
@@ -73,34 +89,65 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     return pages[clampMenuPage(page(), pages.length)] ?? [];
   });
 
-  /** 选择左列菜单：高级设置需要密码。 */
+  /** 选择左列菜单：级别不足时忽略（参考按权限隐藏入口）。 */
   const selectMenu = (index: number): void => {
     playButton(props.platform);
-    if (index === 2 && !adminAuthed()) {
-      setPasswordKind("advanced");
-      return;
-    }
+    if (index > (authLevel() ?? 0)) return;
     setMenuIndex(index);
     setPage(0);
     setDialog("none");
   };
 
-  /** 密码确认：高级设置放行 / 设置管理员密码。 */
-  const submitPassword = (value: string): boolean => {
+  /** 入口密码提交：daemon 校验后记录级别；输错按参考以 0 级进入。 */
+  const submitEntryPassword = async (value: string): Promise<boolean> => {
+    let level = 0;
+    try {
+      level = await props.platform.auth.verifyPassword(value);
+    } catch {
+      level = 0;
+    }
+    setAuthLevel(level);
+    setAuthLevelSignal(level);
+    return true;
+  };
+
+  /** 修改管理员密码：旧密码 → 新密码 → 再次输入。 */
+  const submitAdminPassword = async (value: string): Promise<boolean> => {
     const kind = passwordKind();
-    if (kind === "admin") {
-      if (value.length === 0) return false;
-      setAdminPassword(value);
+    if (kind === "adminOld") {
+      setAdminOld(value);
+      setPasswordKind("adminNew");
+      return true;
+    }
+    if (kind === "adminNew") {
+      setAdminFirst(value);
+      setPasswordKind("adminConfirm");
+      return true;
+    }
+    if (kind === "adminConfirm") {
+      if (value === adminFirst()) {
+        try {
+          await props.platform.auth.setAdminPassword(adminOld(), adminFirst());
+        } catch {
+          // 失败（旧密码错误/新密码非法）时结束流程。
+        }
+      }
       setPasswordKind(null);
       return true;
     }
-    const role = checkPassword(value, getAdminPassword());
-    if (role === "none") return false;
-    setAdminAuthed(true);
-    setMenuIndex(2);
-    setPage(0);
-    setPasswordKind(null);
-    return true;
+    return false;
+  };
+
+  /** 改密流程当前步骤的提示文案键。 */
+  const adminPromptKey = (): LanKey => {
+    switch (passwordKind()) {
+      case "adminOld":
+        return "JCLIB_LAN_ENTER_OLD_PASSWORD";
+      case "adminNew":
+        return "JCLIB_LAN_ENTER_NEW_PASSWORD";
+      default:
+        return "JCLIB_LAN_REENTER_NEW_PASSWORD";
+    }
   };
 
   /** 翻页。 */
@@ -119,13 +166,42 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
     props.onNavigate("home");
   };
 
-  /** 行点击：已实现的子对话框打开，其余仅提示音。 */
+  /** 行点击：子对话框、开关切换或改密流程。 */
   const openRow = (key: LanKey): void => {
     playButton(props.platform);
     if (key === "JCLIB_LAN_LANGUAGE_SELECT") setDialog("language");
     else if (key === "JCLIB_LAN_BRIGHTNESS_ADJUST") setDialog("brightness");
     else if (key === "JCLIB_LAN_VOLUME_ADJUST") setDialog("volume");
-    else if (key === "JCLIB_LAN_SET_ADMIN_PASSWORD") setPasswordKind("admin");
+    else if (key === "JCLIB_LAN_SET_ADMIN_PASSWORD") setPasswordKind("adminOld");
+    else if (key === "JCLIB_LAN_SELF_CHECK_FUNCTION") setSelfCheckEnabled(!getSelfCheckEnabled());
+    else if (key === "JCLIB_LAN_AUTH_ENABLE") setAuthorizationEnabled(!getAuthorizationEnabled());
+    else if (key === "JCLIB_LAN_PASSWORD_BOOT_ENABLE")
+      setPasswordBootEnabled(!getPasswordBootEnabled());
+    else if (key === "JCLIB_LAN_ANTI_REMOVAL_ENABLE") {
+      try {
+        const enabled = props.platform.auth.antiDismantle().enabled;
+        props.platform.auth.setAntiDismantle(!enabled);
+      } catch {
+        // 连接建立前忽略。
+      }
+    }
+  };
+
+  /** 布尔开关行当前值；null 表示该行不是开关。 */
+  const toggleState = (key: LanKey): boolean | null => {
+    settingsVersion();
+    switch (key) {
+      case "JCLIB_LAN_SELF_CHECK_FUNCTION":
+        return getSelfCheckEnabled();
+      case "JCLIB_LAN_AUTH_ENABLE":
+        return getAuthorizationEnabled();
+      case "JCLIB_LAN_PASSWORD_BOOT_ENABLE":
+        return getPasswordBootEnabled();
+      case "JCLIB_LAN_ANTI_REMOVAL_ENABLE":
+        return props.platform.auth.antiDismantle().enabled;
+      default:
+        return null;
+    }
   };
 
   /** 对话框标题（参考：打开子页时标题变为子页名）。 */
@@ -174,14 +250,26 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
   const languageCodeAt = (index: number): LanguageCode | null =>
     SELECTABLE_LANGUAGES.find((entry) => entry.nameIndex === index)?.code ?? null;
 
-  // 密码屏为全屏界面（参考实现），覆盖设置屏；用 Show 保持响应式。
+  // 入口密码未验证时先显示密码屏；改密流程覆盖在设置屏之上。
   return (
+    <Show
+      when={authLevel() !== null}
+      fallback={
+        <PasswordScreen
+          platform={props.platform}
+          prompt={tr("JCLIB_LAN_ENTER_PASSWORD")}
+          onSubmit={submitEntryPassword}
+          onCancel={() => props.onNavigate("home")}
+        />
+      }
+    >
     <Show
       when={passwordKind() === null}
       fallback={
         <PasswordScreen
           platform={props.platform}
-          onSubmit={submitPassword}
+          prompt={tr(adminPromptKey())}
+          onSubmit={submitAdminPassword}
           onCancel={() => setPasswordKind(null)}
         />
       }
@@ -241,6 +329,18 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
                 <Text class={CLASS.rowText} style={{ translateX: SET.rowTextX, translateY: 16, width: SET.row.w - SET.rowTextX * 2, height: 32 }}>
                   {tr(key)}
                 </Text>
+                <Show when={toggleState(key) !== null}>
+                  <Image
+                    src={(toggleState(key) ?? false) ? BAKED.lauageset_ok.src : BAKED.lauageset_null.src}
+                    class="absolute left-0 top-0"
+                    style={{
+                      translateX: SET.row.w - 55,
+                      translateY: Math.round((SET.row.bgH - BAKED.lauageset_ok.h) / 2),
+                      width: BAKED.lauageset_ok.w,
+                      height: BAKED.lauageset_ok.h,
+                    }}
+                  />
+                </Show>
               </View>
             )}
           </For>
@@ -301,6 +401,7 @@ export default function SetScreen(props: { platform: Platform; onNavigate: (tab:
 
       <BottomNav active="set" onNavigate={props.onNavigate} onPress={() => playButton(props.platform)} />
     </View>
+    </Show>
     </Show>
   );
 }
