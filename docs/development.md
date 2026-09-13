@@ -134,6 +134,7 @@ Rust nightly-2026-07-02，target riscv64gc-unknown-linux-gnu
 最终链接使用 nightly 的 LLVM LLD（规避 binutils 2.35 的 RISC-V attributes 限制）
 ```
 
-`tools/build-d211` 将负责 rsync → builder → 交叉编译 → 产物回传；
+`tools/d211-deploy-daemon.sh` 负责 rsync → builder → 交叉编译 → 产物回传与
+设备部署（builder 侧脚本 `tools/device/build-daemon-builder.sh`）；
 部署路径 `/opt/forklift/`，runtime 数据 `/var/lib/forklift/`，日志
-`/var/log/forklift/`。
+`/var/log/forkliftd.log`，开机脚本 `/etc/init.d/S90forkliftd`。

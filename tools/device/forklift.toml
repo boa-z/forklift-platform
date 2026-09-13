@@ -1,0 +1,15 @@
+socket_path = "/run/forklift/forkliftd.sock"
+can_interface = "can0"
+signal_timeout_ms = 500
+tick_ms = 20
+publish_hz = 25
+volume = 70
+brightness = 80
+camera_enable = true
+use_mock_hardware = false
+mcu_enable = true
+mcu_device = "/dev/ttyS1"
+mcu_baud = 115200
+auth_path = "/var/lib/forklift/auth.toml"
+settings_path = "/var/lib/forklift/settings.toml"
+log_level = "info"
