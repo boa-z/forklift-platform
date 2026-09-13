@@ -119,3 +119,19 @@ declare module "@pocketjs/framework/serial" {
   /** 取串口模块命名空间（宿主未挂载时返回 null）。 */
   export function serialHost(): SerialOps | null;
 }
+
+declare module "@pocketjs/framework/ipc" {
+  /** 宿主 IPC 模块命名空间（未挂载时 ipcHost() 返回 null）。 */
+  export interface IpcOps {
+    /** 绑定 SOCK_SEQPACKET 套接字；路径不可用时返回 false。 */
+    connect(path: string): boolean;
+    /** 释放套接字（未打开时为空操作）。 */
+    close(): void;
+    /** 发送一个数据报（调用期间借用缓冲）；返回入队字节数，-1 表示错误。 */
+    send(data: Uint8Array | ArrayBuffer): number;
+    /** 取一个数据报；空闲时返回空 ArrayBuffer。 */
+    recv(capacity?: number): ArrayBuffer;
+  }
+  /** 取 IPC 模块命名空间（宿主未挂载时返回 null）。 */
+  export function ipcHost(): IpcOps | null;
+}

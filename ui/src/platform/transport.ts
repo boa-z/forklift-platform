@@ -15,4 +15,8 @@ export interface Transport {
   onMessage(handler: (message: ServerMessage) => void): void;
   /** 订阅连接关闭（含错误）。 */
   onClose(handler: (error?: Error) => void): void;
+  /** 可选：逐帧排空接收队列（IPC 等异步来源使用）。 */
+  pump?(): void;
+  /** 可选：逐帧推进数据生成（Mock 使用）。 */
+  tick?(): void;
 }

@@ -10,8 +10,11 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import type { TabId } from "./src/nav/nav";
 import { initialBootStage, stageAfterSelfCheck, type BootStage } from "./src/boot";
 import { AlarmEngine, type AlarmInputs } from "./src/platform/alarms";
-import { createPlatform, MockTransport } from "./src/platform";
+import { ipcHost } from "@pocketjs/framework/ipc";
+
+import { createPlatform, MockTransport, type Transport } from "./src/platform";
 import { createDeviceEffects } from "./src/platform/effects";
+import { IpcTransport } from "./src/platform/ipc";
 import { applySettingsFlags, getAuthorizationEnabled, getSelfCheckEnabled } from "./src/settings";
 import AuthorizationScreen from "./src/screens/authorization/AuthorizationScreen";
 import CameraScreen from "./src/screens/camera/CameraScreen";
@@ -25,13 +28,18 @@ import SetScreen from "./src/screens/set/SetScreen";
 /** 叉车仪表应用根组件。 */
 export default function ForkliftApp() {
   const effects = createDeviceEffects();
-  const transport = new MockTransport({
-    effects: {
-      playSound: (sound) => effects.playSound(sound),
-      setVolume: (volume) => effects.setVolume(volume),
-      setBrightness: (brightness) => effects.setBrightness(brightness),
-    },
-  });
+  // 设备（PocketJS ipc 宿主模块在位）连 forkliftd；开发/金样退回内存 Mock。
+  const ipc = ipcHost();
+  const transport: Transport =
+    ipc !== null
+      ? new IpcTransport(ipc, "/run/forklift/forkliftd.sock")
+      : new MockTransport({
+          effects: {
+            playSound: (sound) => effects.playSound(sound),
+            setVolume: (volume) => effects.setVolume(volume),
+            setBrightness: (brightness) => effects.setBrightness(brightness),
+          },
+        });
   const platform = createPlatform(transport);
   const [stage, setStage] = createSignal<BootStage | "loading">("loading");
   const [tab, setTab] = createSignal<TabId>("home");
@@ -91,7 +99,8 @@ export default function ForkliftApp() {
   });
 
   onFrame(() => {
-    transport.tick();
+    transport.pump?.();
+    transport.tick?.();
     const now = Date.now();
     alarms.tick(now - lastFrameMs, alarmInputs, safePlay);
     lastFrameMs = now;

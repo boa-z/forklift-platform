@@ -418,6 +418,37 @@ function decodeSwipeReport(reader: Reader): SwipeReportMessage {
   };
 }
 
+/**
+ * 字节流分帧：累积数据并按帧头长度切出完整帧。
+ * 纯逻辑，供 macOS 的 UnixTransport 与设备的 IpcTransport 共用。
+ */
+export class FrameDecoder {
+  private buffer = new Uint8Array(0);
+
+  /** 追加一块数据，返回其中完整的帧。 */
+  push(chunk: Uint8Array): Uint8Array[] {
+    const merged = new Uint8Array(this.buffer.byteLength + chunk.byteLength);
+    merged.set(this.buffer, 0);
+    merged.set(chunk, this.buffer.byteLength);
+    this.buffer = merged;
+
+    const frames: Uint8Array[] = [];
+    for (;;) {
+      if (this.buffer.byteLength < HEADER_SIZE) break;
+      const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, HEADER_SIZE);
+      const payloadLength = view.getUint32(8, true);
+      if (payloadLength > MAX_PAYLOAD) {
+        throw new Error(`帧载荷超限：${payloadLength}`);
+      }
+      const frameLength = HEADER_SIZE + payloadLength;
+      if (this.buffer.byteLength < frameLength) break;
+      frames.push(this.buffer.slice(0, frameLength));
+      this.buffer = this.buffer.slice(frameLength);
+    }
+    return frames;
+  }
+}
+
 /** 解析 16 字节帧头并做基础校验。 */
 export function parseHeader(bytes: Uint8Array): FrameHeader {
   if (bytes.byteLength < HEADER_SIZE) {

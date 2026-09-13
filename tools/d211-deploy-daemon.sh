@@ -46,7 +46,7 @@ adb push "$dist/forkliftd" /opt/forklift/forkliftd >/dev/null
 adb push "$dist/forkliftctl" /opt/forklift/forkliftctl >/dev/null
 adb push "$root/tools/device/forklift.toml" /etc/forklift.toml >/dev/null
 adb push "$root/tools/device/S90forkliftd" /etc/init.d/S90forkliftd >/dev/null
-adb shell "chmod +x /opt/forklift/forkliftd /opt/forklift/forkliftctl /etc/init.d/S90forkliftd"
+adb shell "chmod +x /opt/forklift/forkliftd /opt/forklift/forkliftctl /etc/init.d/S90forkliftd; sync"
 
 echo "d211-deploy-daemon: 启动服务"
 adb shell "/etc/init.d/S90forkliftd restart; sleep 1; ps | grep forkliftd | grep -v grep; cat /var/log/forkliftd.log | awk \"NR<=20\""
