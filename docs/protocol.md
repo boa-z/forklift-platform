@@ -1,4 +1,4 @@
-# Forklift IPC 协议（protocol v1）
+# Forklift IPC 协议（protocol v5）
 
 `protocol` crate 是 `forkliftd`、`forklift-sim`、集成测试与 PocketJS platform bridge
 共用的唯一协议实现。本文档是测试与联调的对照表。
@@ -17,7 +17,7 @@
 | 偏移 | 长度 | 字段 | 说明 |
 | --- | --- | --- | --- |
 | 0 | 4 | `magic` | `0x544B4C46`（`'F''L''K''T'` 小端） |
-| 4 | 2 | `version` | 当前 `1`；不等于本版本直接断开 |
+| 4 | 2 | `version` | 当前 `4`（v2 `battery.charging`，v3 `io.anti_dismantle`，v4 SoundId 语音表）；不等于本版本直接断开 |
 | 6 | 2 | `message_type` | 见消息目录 |
 | 8 | 4 | `payload_length` | 必须 ≤ `MAX_PAYLOAD`（64 KiB）且与实际长度一致 |
 | 12 | 4 | `sequence` | 发送方递增序号，回包可据此对账 |
@@ -29,9 +29,9 @@
 
 ```text
 client                          daemon
-  |  HELLO { client_version: 1 }  |
+  |  HELLO { client_version: 5 }  |
   |------------------------------>|
-  |  SERVER_VERSION { 1 }         |
+  |  SERVER_VERSION { 5 }         |
   |<------------------------------|
   |  STATE_* / EVENT_* ...        |
 ```
@@ -54,13 +54,30 @@ client                          daemon
 | 0x0200 | `EVENT_FAULT_RAISED` | D→C | `Fault` |
 | 0x0201 | `EVENT_FAULT_CLEARED` | D→C | `Fault` |
 | 0x0202 | `EVENT_CONNECTIVITY` | D→C | `ConnectivityEvent` |
+| 0x0203 | `EVENT_SWIPE_REPORT` | D→C | 37B packed 刷卡上报（u16 status/index/name/card/id/phone/驾照/IC 证/config） |
+| 0x0204 | `EVENT_AUTH_STATE` | D→C | `u8` level（0 用户/1 管理员/2 超级管理员）+ `bool` authorized |
+| 0x0205 | `EVENT_ANTI_DISMANTLE` | D→C | `bool` enabled + `bool` alarm |
+| 0x0206 | `EVENT_RTC` | D→C | 6B：YY MM DD hh mm ss |
 | 0x0300 | `CMD_PLAY_SOUND` | C→D | `u8` SoundId（0 Button/1 Warning/2 Reverse/3 Fault/4 Startup） |
 | 0x0301 | `CMD_SET_VOLUME` | C→D | `u8` 0–100 |
 | 0x0302 | `CMD_SET_BRIGHTNESS` | C→D | `u8` 0–100 |
 | 0x0303 | `CMD_PING` | C→D | `u32` nonce |
+| 0x0304 | `CMD_REPORT_POWER_ON` | C→D | `u8` kind（0 密码/1 刷卡/4 蓝牙）+ 4B 卡号 |
+| 0x0305 | `CMD_SWIPE_REPLY` | C→D | `u8` 结果（0 成功） |
+| 0x0306 | `CMD_VERIFY_PASSWORD` | C→D | 字符串密码；应答 `RESP_AUTH_LEVEL` |
+| 0x0307 | `CMD_SET_ADMIN_PASSWORD` | C→D | 旧密码 + 新密码；应答 `RESP_OK`/`RESP_ERROR`(2001) |
+| 0x0308 | `CMD_ENTER_LICENSE_TAIL` | C→D | 身份证后 4/6 位；应答 `RESP_ERROR`(2002/2003) 或不正确 |
+| 0x0309 | `CMD_SET_ANTI_DISMANTLE` | C→D | `bool` enabled |
+| 0x030A | `CMD_GET_SETTINGS` | C→D | 空；应答 `RESP_SETTINGS` |
+| 0x030B | `CMD_SET_SETTINGS` | C→D | `u8` 位域；应答 `RESP_SETTINGS` + `RESP_OK` |
 | 0x0400 | `RESP_OK` | D→C | 空 |
 | 0x0401 | `RESP_ERROR` | D→C | `u16` code + 长度前缀字符串（≤128 字符） |
 | 0x0402 | `RESP_PONG` | D→C | `u32` nonce |
+| 0x0403 | `RESP_AUTH_LEVEL` | D→C | `u8` level（0/1/2） |
+| 0x0404 | `RESP_SETTINGS` | D→C | `u8` 位域（bit0 自检/bit1 授权/bit2 密码开机/bit3 防拆） |
+
+错误码：1001 协议/校验失败、1002 握手顺序或版本不满足、2001 改密失败、
+2002 身份证尾号不正确、2003 无待认证刷卡、2004 设置持久化失败。
 
 ## 5. VehicleState（0x0100）
 
@@ -112,9 +129,10 @@ quality 置为 Stale；UI 依据 quality 显示 `--`。
 ## 8. 测试
 
 ```sh
-cargo test -p protocol          # 12 个用例
+cargo test -p protocol          # 帧 codec、消息 round trip、MCU 协议
 ```
 
 覆盖：VehicleState/Fault/命令 round trip、金样帧头字节、坏 magic、未知版本、
-超长 payload、截断帧、未知消息类型、长度不一致、Signal 超时语义。
-集成（sim ↔ client）见 `daemon/tests/ipc_integration.rs`（随 daemon 模块提交）。
+超长 payload、截断帧、未知消息类型、长度不一致、Signal 超时语义，以及 MCU
+XOR8 帧/刷卡上报/实时 TLV 的解码与重同步。
+集成（sim ↔ client、刷卡与密码链路）见 `daemon/tests/ipc_integration.rs`。

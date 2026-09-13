@@ -14,12 +14,14 @@ pub struct VehicleUpdate {
     pub soc_percent: Option<f32>,
     pub voltage_v: Option<f32>,
     pub current_a: Option<f32>,
+    pub charging: Option<bool>,
     pub rpm: Option<f32>,
     pub motor_temp_c: Option<f32>,
     pub pressure_mpa: Option<f32>,
     pub seat_switch: Option<bool>,
     pub seatbelt: Option<bool>,
     pub key_on: Option<bool>,
+    pub anti_dismantle: Option<bool>,
     pub odometer_km: Option<f32>,
     pub work_hours: Option<f32>,
     pub controller_online: Option<[bool; 3]>,
@@ -44,12 +46,14 @@ impl VehicleUpdate {
         merge_option!(soc_percent);
         merge_option!(voltage_v);
         merge_option!(current_a);
+        merge_option!(charging);
         merge_option!(rpm);
         merge_option!(motor_temp_c);
         merge_option!(pressure_mpa);
         merge_option!(seat_switch);
         merge_option!(seatbelt);
         merge_option!(key_on);
+        merge_option!(anti_dismantle);
         merge_option!(odometer_km);
         merge_option!(work_hours);
         merge_option!(controller_online);
@@ -86,12 +90,14 @@ impl VehicleModel {
         set_signal!(self.state.battery.soc_percent, update.soc_percent);
         set_signal!(self.state.battery.voltage_v, update.voltage_v);
         set_signal!(self.state.battery.current_a, update.current_a);
+        set_signal!(self.state.battery.charging, update.charging);
         set_signal!(self.state.motor.rpm, update.rpm);
         set_signal!(self.state.motor.temperature_c, update.motor_temp_c);
         set_signal!(self.state.hydraulics.pressure_mpa, update.pressure_mpa);
         set_signal!(self.state.io.seat_switch, update.seat_switch);
         set_signal!(self.state.io.seatbelt, update.seatbelt);
         set_signal!(self.state.io.key_on, update.key_on);
+        set_signal!(self.state.io.anti_dismantle, update.anti_dismantle);
         set_signal!(self.state.vehicle.odometer_km, update.odometer_km);
         set_signal!(self.state.vehicle.work_hours, update.work_hours);
         if let Some(online) = update.controller_online {

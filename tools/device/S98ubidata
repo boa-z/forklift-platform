@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# 挂载数据分区：/dev/mtd11 ("ubisystem") 上的 UBI 卷建立 UBIFS，挂到 /data。
+# 由 tools/d211-default-app.sh 部署到 /etc/init.d/S98ubidata。
+#
+# 幂等：已 attach 则跳过；已挂载则跳过。工具来自 mtd-utils（见
+# tools/d211-data-partition.sh 的构建说明）。
+
+TOOLS=/opt/pocketjs/tools
+# 优先用系统内置 mtd-utils（固件已打包），旧固件回退到 /opt/pocketjs/tools。
+UBIATTACH="$(command -v ubiattach 2>/dev/null || true)"
+[ -n "$UBIATTACH" ] || UBIATTACH="$TOOLS/ubiattach"
+
+attach_and_mount() {
+	printf "Mounting /data: "
+	if [ ! -e /dev/ubi1 ]; then
+		"$UBIATTACH" -m 11 >/dev/null 2>&1 || true
+	fi
+	if [ ! -e /dev/ubi1 ]; then
+		printf "Fail (ubiattach)\n"
+		return 1
+	fi
+	if mountpoint -q /data 2>/dev/null; then
+		printf "Already mounted \n"
+		return 0
+	fi
+	mkdir -p /data
+	if mount -t ubifs ubi1_0 /data; then
+		printf "OK \n"
+	else
+		printf "Fail (mount)\n"
+		return 1
+	fi
+}
+
+case "$1" in
+start)
+	attach_and_mount
+	;;
+stop)
+	printf "Unmounting /data: "
+	umount /data 2>/dev/null || true
+	printf "OK \n"
+	;;
+*)
+	echo "usage: $0 {start|stop}"
+	exit 1
+	;;
+esac

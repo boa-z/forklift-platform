@@ -2,19 +2,21 @@
 //!
 //! 覆盖：握手、状态发布、PING/PONG、命令应答、故障事件、客户端重连。
 
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use forkliftd::backends::can::{CAN_ID_BATTERY, CAN_ID_MOTION, CAN_ID_MOTOR};
 use forkliftd::backends::{
-    CanBackend, CanError, CanFrame, MockAdcBackend, MockAudioBackend, MockCameraBackend,
-    MockWatchdog,
+    CanBackend, CanError, CanFrame, McuBackend, MockAdcBackend, MockAudioBackend,
+    MockCameraBackend, MockWatchdog,
 };
 use forkliftd::ipc::Server;
 use forkliftd::service::{Backends, Service, ServiceConfig};
+use protocol::mcu::{self, Frame, McuError};
 use protocol::{Client, Direction, Message, RunMode, SoundId, FAULT_MOTOR_OVERHEAT};
 
 /// 测试用 CAN 后端：前 10 次采样温度正常，之后注入过热帧。
@@ -67,6 +69,65 @@ impl CanBackend for TestCanBackend {
     }
 }
 
+/// 测试用 MCU 后端：从探针注入上行帧，下行帧写回探针。
+struct TestMcuBackend {
+    incoming: Arc<Mutex<VecDeque<Frame>>>,
+    sent: Arc<Mutex<Vec<Frame>>>,
+}
+
+impl McuBackend for TestMcuBackend {
+    /// 取出探针注入的全部帧。
+    fn poll(&mut self, out: &mut Vec<Frame>) -> Result<(), McuError> {
+        let mut queue = self.incoming.lock().expect("mcu 注入队列锁");
+        out.extend(queue.drain(..));
+        Ok(())
+    }
+
+    /// 把发送帧记录到探针。
+    fn send(&mut self, frame: &Frame) -> Result<(), McuError> {
+        self.sent.lock().expect("mcu 发送队列锁").push(frame.clone());
+        Ok(())
+    }
+}
+
+/// 测试与 daemon 之间的 MCU 共享句柄。
+#[derive(Clone, Default)]
+struct McuProbe {
+    incoming: Arc<Mutex<VecDeque<Frame>>>,
+    sent: Arc<Mutex<Vec<Frame>>>,
+}
+
+impl McuProbe {
+    /// 注入一帧模组上报。
+    fn push(&self, frame: Frame) {
+        self.incoming
+            .lock()
+            .expect("mcu 注入队列锁")
+            .push_back(frame);
+    }
+
+    /// 取当前全部下行帧快照。
+    fn sent_frames(&self) -> Vec<Frame> {
+        self.sent.lock().expect("mcu 发送队列锁").clone()
+    }
+}
+
+/// 等待 daemon 向模组发送某索引的帧。
+fn wait_for_sent(probe: &McuProbe, timeout: Duration, index: mcu::Index) -> Frame {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(frame) = probe
+            .sent_frames()
+            .into_iter()
+            .find(|frame| frame.index == index)
+        {
+            return frame;
+        }
+        assert!(Instant::now() < deadline, "等待模组发送超时：{index:?}");
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
 /// 生成唯一的 socket 路径，避免并行测试互撞。
 fn socket_path(tag: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -77,8 +138,9 @@ fn socket_path(tag: &str) -> PathBuf {
 }
 
 /// 启动一个测试服务并返回 socket 路径。
-fn spawn_service(tag: &str, polls: Arc<AtomicU32>) -> PathBuf {
+fn spawn_service_with_mcu(tag: &str, polls: Arc<AtomicU32>) -> (PathBuf, McuProbe) {
     let path = socket_path(tag);
+    let probe = McuProbe::default();
     let backends = Backends {
         can: Box::new(TestCanBackend {
             polls,
@@ -87,6 +149,10 @@ fn spawn_service(tag: &str, polls: Arc<AtomicU32>) -> PathBuf {
         adc: Box::new(MockAdcBackend::new()),
         camera: Box::new(MockCameraBackend::new()),
         audio: Box::new(MockAudioBackend::new(70)),
+        mcu: Box::new(TestMcuBackend {
+            incoming: Arc::clone(&probe.incoming),
+            sent: Arc::clone(&probe.sent),
+        }),
         watchdog: Box::new(MockWatchdog::new()),
     };
     let (server, commands) = Server::bind(&path).expect("绑定测试 socket");
@@ -97,9 +163,17 @@ fn spawn_service(tag: &str, polls: Arc<AtomicU32>) -> PathBuf {
         camera_enable: true,
         brightness: 80,
         volume: 70,
+        mcu_enable: true,
+        auth_path: socket_path(tag).with_extension("auth.toml"),
+        settings_path: socket_path(tag).with_extension("settings.toml"),
     };
     thread::spawn(move || Service::new(config, server, commands, backends).run());
-    path
+    (path, probe)
+}
+
+/// 启动一个测试服务并返回 socket 路径。
+fn spawn_service(tag: &str, polls: Arc<AtomicU32>) -> PathBuf {
+    spawn_service_with_mcu(tag, polls).0
 }
 
 /// 等待一条满足条件的消息，超时即失败。
@@ -165,6 +239,125 @@ fn simulator_style_backend_reaches_client_over_ipc() {
     });
 
     std::fs::remove_file(&path).ok();
+}
+
+/// 刷卡与密码链路：模组上报 → UI 事件 → 回包/开机上报 → 密码分级。
+#[test]
+fn swipe_and_password_flow_over_ipc() {
+    let polls = Arc::new(AtomicU32::new(0));
+    let (path, probe) = spawn_service_with_mcu("auth", Arc::clone(&polls));
+    let auth_path = socket_path("auth").with_extension("auth.toml");
+    let _ = std::fs::remove_file(&auth_path);
+
+    let mut client = Client::connect(&path).expect("连接服务");
+    client.handshake().expect("握手");
+
+    // 1) 注入一条刷卡成功上报。
+    let report = mcu::SwipeReport {
+        status: 1,
+        index: 3,
+        name: *b"ZHANG SA",
+        card: [0x11, 0x22, 0x33, 0x44],
+        id: [0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x34, 0x56, 0x78],
+        phone: [0; 6],
+        driver_license: [0; 3],
+        ic_license: [0; 3],
+        config: 0,
+    };
+    probe.push(
+        Frame::new(mcu::CMD_SET, mcu::index::SWIPE_REPORT, report.encode()).expect("构造刷卡帧"),
+    );
+
+    // 2) UI 先收到已授权状态，再收到刷卡事件（daemon 按此顺序发布）。
+    let authorized = wait_for(&mut client, Duration::from_secs(3), |message| match message {
+        Message::AuthState(state) => Some(state.authorized),
+        _ => None,
+    });
+    assert!(authorized);
+    let status = wait_for(&mut client, Duration::from_secs(3), |message| match message {
+        Message::SwipeReport(report) => Some(report.status),
+        _ => None,
+    });
+    assert_eq!(status, 1);
+
+    // 3) 模组收到刷卡应答（0）与刷卡开机上报。
+    let reply = wait_for_sent(&probe, Duration::from_secs(3), mcu::index::SWIPE_REPLY);
+    assert_eq!(reply.data, vec![0]);
+    let power_on = wait_for_sent(&probe, Duration::from_secs(3), mcu::index::POWER_ON_REPORT);
+    assert_eq!(
+        power_on.data,
+        mcu::power_on_report(mcu::PowerOnType::Card, report.card)
+    );
+
+    // 4) 密码校验返回三级权限。
+    client
+        .send(&Message::VerifyPassword {
+            password: "32431".to_string(),
+        })
+        .expect("发送密码校验");
+    let level = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::AuthLevel(level) => Some(*level),
+        _ => None,
+    });
+    assert_eq!(level, 2);
+
+    // 5) 修改管理员密码：旧密码错误 → RESP_ERROR。
+    client
+        .send(&Message::SetAdminPassword {
+            old_password: "00000".to_string(),
+            new_password: "54321".to_string(),
+        })
+        .expect("发送改密请求");
+    let code = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Error { code, .. } => Some(*code),
+        _ => None,
+    });
+    assert_eq!(code, 2001);
+
+    drop(client);
+    std::fs::remove_file(&path).ok();
+    let _ = std::fs::remove_file(&auth_path);
+}
+
+/// UI 设置位域：默认值、写入与回读。
+#[test]
+fn settings_round_trip_over_ipc() {
+    let polls = Arc::new(AtomicU32::new(0));
+    let (path, _probe) = spawn_service_with_mcu("settings", Arc::clone(&polls));
+    let settings_path = socket_path("settings").with_extension("settings.toml");
+    let _ = std::fs::remove_file(&settings_path);
+
+    let mut client = Client::connect(&path).expect("连接服务");
+    client.handshake().expect("握手");
+
+    // 默认：授权使能开启（bit1）。
+    client.send(&Message::GetSettings).expect("查询设置");
+    let flags = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Settings { flags } => Some(*flags),
+        _ => None,
+    });
+    assert_eq!(flags, 1 << 1);
+
+    // 写入“自检 + 防拆”并确认回读一致。
+    client
+        .send(&Message::SetSettings {
+            flags: (1 << 0) | (1 << 3),
+        })
+        .expect("写设置");
+    wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Ok => Some(()),
+        _ => None,
+    });
+    client.send(&Message::GetSettings).expect("再次查询");
+    let flags = wait_for(&mut client, Duration::from_secs(2), |message| match message {
+        Message::Settings { flags } => Some(*flags),
+        _ => None,
+    });
+    assert_eq!(flags, (1 << 0) | (1 << 3));
+
+    drop(client);
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&settings_path);
 }
 
 /// 协议版本不符时握手必须失败。

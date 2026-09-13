@@ -69,14 +69,6 @@ export const VEHICLE = {
 /** 全屏遮罩（超速警告等）。 */
 export const OVERLAY = { x: 0, y: 0, w: SCREEN_WIDTH, h: SCREEN_HEIGHT } as const;
 
-/** 底部导航按钮。 */
-export const BOTTOM_BUTTONS = {
-  monitor: { x: 0, y: 410, w: 198, h: 69 },
-  home: { x: 202, y: 410, w: 198, h: 69 },
-  fault: { x: 402, y: 410, w: 198, h: 69 },
-  set: { x: 602, y: 410, w: 198, h: 69 },
-} as const;
-
 /** 通用状态图标（两行五列）。 */
 export const STATUS_GRID = {
   size: 28,

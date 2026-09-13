@@ -227,6 +227,8 @@ pub struct BatteryState {
     pub soc_percent: Signal<f32>,
     pub voltage_v: Signal<f32>,
     pub current_a: Signal<f32>,
+    /// 充电条件满足（daemon 侧判定：钥匙电低且充电电源电压足够）。
+    pub charging: Signal<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -245,6 +247,8 @@ pub struct IoState {
     pub seat_switch: Signal<bool>,
     pub seatbelt: Signal<bool>,
     pub key_on: Signal<bool>,
+    /// 防拆卸模块上报的拆除标志（配合设置项由 UI 决定是否遮挡）。
+    pub anti_dismantle: Signal<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -289,6 +293,7 @@ impl VehicleState {
                 soc_percent: Signal::unavailable(),
                 voltage_v: Signal::unavailable(),
                 current_a: Signal::unavailable(),
+                charging: Signal::unavailable(),
             },
             motor: MotorState {
                 rpm: Signal::unavailable(),
@@ -301,6 +306,7 @@ impl VehicleState {
                 seat_switch: Signal::unavailable(),
                 seatbelt: Signal::unavailable(),
                 key_on: Signal::unavailable(),
+                anti_dismantle: Signal::unavailable(),
             },
             connectivity: ConnectivityState {
                 can_online: false,
@@ -347,12 +353,14 @@ impl VehicleState {
         self.battery.soc_percent.encode(writer);
         self.battery.voltage_v.encode(writer);
         self.battery.current_a.encode(writer);
+        self.battery.charging.encode(writer);
         self.motor.rpm.encode(writer);
         self.motor.temperature_c.encode(writer);
         self.hydraulics.pressure_mpa.encode(writer);
         self.io.seat_switch.encode(writer);
         self.io.seatbelt.encode(writer);
         self.io.key_on.encode(writer);
+        self.io.anti_dismantle.encode(writer);
         writer.put_bool(self.connectivity.can_online);
         writer.put_bool(self.connectivity.camera_online);
         self.vehicle.odometer_km.encode(writer);
@@ -373,12 +381,14 @@ impl VehicleState {
         let soc_percent = Signal::decode(reader)?;
         let voltage_v = Signal::decode(reader)?;
         let current_a = Signal::decode(reader)?;
+        let charging = Signal::decode(reader)?;
         let rpm = Signal::decode(reader)?;
         let temperature_c = Signal::decode(reader)?;
         let pressure_mpa = Signal::decode(reader)?;
         let seat_switch = Signal::decode(reader)?;
         let seatbelt = Signal::decode(reader)?;
         let key_on = Signal::decode(reader)?;
+        let anti_dismantle = Signal::decode(reader)?;
         let can_online = reader.bool()?;
         let camera_online = reader.bool()?;
         let odometer_km = Signal::decode(reader)?;
@@ -399,6 +409,7 @@ impl VehicleState {
                 soc_percent,
                 voltage_v,
                 current_a,
+                charging,
             },
             motor: MotorState {
                 rpm,
@@ -409,6 +420,7 @@ impl VehicleState {
                 seat_switch,
                 seatbelt,
                 key_on,
+                anti_dismantle,
             },
             connectivity: ConnectivityState {
                 can_online,

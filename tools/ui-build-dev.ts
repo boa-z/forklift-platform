@@ -8,15 +8,17 @@
 // 产物：dist/ui/forklift-main.js + forklift-main.pak
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const root = join(import.meta.dir, "..");
-const pocketjs = (process.env.POCKETJS_ROOT ?? "").trim();
-if (pocketjs === "") {
+const pocketjsEnv = (process.env.POCKETJS_ROOT ?? "").trim();
+if (pocketjsEnv === "") {
   console.error("ui-build-dev: 请设置 POCKETJS_ROOT 指向 PocketJS 检出目录");
   console.error("  POCKETJS_ROOT=../pocketjs bun tools/ui-build-dev.ts（在 forklift-platform 根目录执行）");
   process.exit(1);
 }
+// 相对于执行目录解析，保证动态 import 路径有效。
+const pocketjs = resolve(pocketjsEnv);
 
 /** 打印错误并退出。 */
 function fail(message: string): never {
@@ -44,6 +46,17 @@ for (const required of [
       `PocketJS 检出缺少 ${required}；请在 ${pocketjs} 执行 bun install 后重试`,
     );
   }
+}
+
+// --- 预检 Solid 入口的 scheduler 修复（QuickJS 上握手依赖它） ---------------
+// 见 pocket-stack/pocketjs#414：缺少 setTimeout/clearTimeout polyfill 时
+// platform.connect() 在设备上静默失败，所有命令（含音频/亮度）被吞掉。
+const solidEntry = readFileSync(join(pocketjs, "framework/src/index.ts"), "utf8");
+if (!solidEntry.includes("scheduler-polyfill")) {
+  fail(
+    "PocketJS 检出的 Solid 入口缺少 scheduler polyfill（pocket-stack/pocketjs#414）；" +
+      "请先切到包含该提交的分支（本地集成用 integration/d211，或 fix/solid-scheduler-globals）",
+  );
 }
 
 // --- 让 @pocketjs/framework/* 在应用侧始终可解析 ----------------------------
@@ -103,7 +116,7 @@ console.log(
 
 // 动态导入 PocketJS 的类型/解析器（仅构建期使用）。
 const platforms = await import(join(pocketjs, "contracts/spec/platforms.ts"));
-const resolve = await import(join(pocketjs, "framework/src/manifest/resolve.ts"));
+const manifestResolve = await import(join(pocketjs, "framework/src/manifest/resolve.ts"));
 const hostInputs = await import(join(pocketjs, "framework/src/manifest/host-build-inputs.ts"));
 
 const TARGET_ID = "d211-linux-dev";
@@ -126,7 +139,7 @@ const contracts = platforms.definePlatformContractRegistry(
 );
 
 const manifest = JSON.parse(await Bun.file(manifestPath).text());
-const resolution = resolve.validateAndResolveBuildPlan(manifest, { target: TARGET_ID }, contracts);
+const resolution = manifestResolve.validateAndResolveBuildPlan(manifest, { target: TARGET_ID }, contracts);
 if (!resolution.ok) {
   console.error("ui-build-dev: manifest 解析失败");
   for (const diagnostic of resolution.diagnostics) {

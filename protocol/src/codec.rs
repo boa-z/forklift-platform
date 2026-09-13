@@ -26,6 +26,8 @@ pub enum ProtocolError {
     InvalidEnum { field: &'static str, value: u32 },
     #[error("invalid UTF-8 string")]
     InvalidUtf8,
+    #[error("invalid MCU payload: {message}")]
+    InvalidMcuPayload { message: String },
     #[error("string exceeds its length limit")]
     StringTooLong,
 }
@@ -134,7 +136,7 @@ impl<'a> Reader<'a> {
     }
 
     /// 取走 `length` 字节，越界时报错。
-    fn take(&mut self, length: usize) -> Result<&'a [u8], ProtocolError> {
+    pub fn take(&mut self, length: usize) -> Result<&'a [u8], ProtocolError> {
         if self.remaining() < length {
             return Err(ProtocolError::Truncated {
                 needed: length,

@@ -13,7 +13,7 @@ use forkliftd::backends::{MockAdcBackend, MockAudioBackend, MockCameraBackend, M
 use forkliftd::ipc::Server;
 use forkliftd::service::{Backends, Service, ServiceConfig};
 use protocol::Direction;
-use sim::{Scenario, SimCanBackend, SimVehicle};
+use sim::{Scenario, SimCanBackend, SimMcuBackend, SimVehicle};
 
 /// 命令行参数。
 #[derive(Debug, Parser)]
@@ -87,10 +87,11 @@ fn main() -> ExitCode {
     };
 
     let backends = Backends {
-        can: Box::new(SimCanBackend::new(initial, scenario)),
+        can: Box::new(SimCanBackend::new(initial, scenario.clone())),
         adc: Box::new(MockAdcBackend::new()),
         camera: Box::new(MockCameraBackend::new()),
         audio: Box::new(MockAudioBackend::new(70)),
+        mcu: Box::new(SimMcuBackend::new(scenario)),
         watchdog: Box::new(MockWatchdog::new()),
     };
     let (server, commands) = match Server::bind(&args.socket) {
@@ -107,6 +108,9 @@ fn main() -> ExitCode {
         camera_enable: true,
         brightness: 80,
         volume: 70,
+        mcu_enable: true,
+        auth_path: std::env::temp_dir().join("forklift-sim-auth.toml"),
+        settings_path: std::env::temp_dir().join("forklift-sim-settings.toml"),
     };
     log::info!(target: "sim", "模拟器启动：socket={}", args.socket.display());
     Service::new(config, server, commands, backends).run()

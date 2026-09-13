@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# 启动 forkliftd（叉车仪表平台守护进程）。
+# 部署到设备 /etc/init.d/S90forkliftd。
+
+DAEMON=/opt/forklift/forkliftd
+CONFIG=/etc/forklift.toml
+LOGFILE=/var/log/forkliftd.log
+PIDFILE=/var/run/forkliftd.pid
+
+start() {
+	printf "Starting forkliftd: "
+	killall -9 forkliftd 2>/dev/null
+	mkdir -p /run/forklift /var/lib/forklift
+	[ -x "$DAEMON" ] || {
+		printf "Fail (no daemon)\n"
+		return 1
+	}
+	setsid "$DAEMON" --config "$CONFIG" >"$LOGFILE" 2>&1 &
+	echo $! >"$PIDFILE"
+	sleep 1
+	printf "OK \n"
+}
+
+stop() {
+	printf "Stopping forkliftd: "
+	killall -9 forkliftd 2>/dev/null
+	mv -f "$PIDFILE" /tmp/forkliftd.pid.stopped 2>/dev/null
+	printf "OK \n"
+}
+
+case "$1" in
+start)
+	start
+	;;
+stop)
+	stop
+	;;
+restart)
+	stop
+	sleep 1
+	start
+	;;
+*)
+	echo "usage: $0 {start|stop|restart}"
+	exit 1
+	;;
+esac

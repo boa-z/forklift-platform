@@ -1,0 +1,6 @@
+{
+  "fallback": [
+    "assets/fonts/MiSans-Normal.subset.ttf",
+    "assets/fonts/MiSans-Demibold.subset.ttf"
+  ]
+}

@@ -6,7 +6,12 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 
 import type { FaultSnapshot, Platform, VehicleState } from "../../platform";
-import { CLASS, SCREEN_CLASS, SLOT_CLASS, SOC_TRACK_CLASS, socFillClass, speedClass } from "../../theme/theme";
+import { playButton } from "../../platform/feedback";
+import BottomNav from "../../components/BottomNav";
+import DigitNumber from "../../components/DigitNumber";
+import ScreenBackground from "../../components/ScreenBackground";
+import type { TabId } from "../../nav/nav";
+import { CLASS, SCREEN_CLASS, socFillClass, speedDigitSet } from "../../theme/theme";
 import { BAKED, type BakedAsset } from "./assets.gen";
 import {
   formatClock,
@@ -16,15 +21,15 @@ import {
   formatSteerAngle,
   formatWorkhour,
   gear,
-  socBarState,
+  socBarShape,
+  socSegmentAsset,
+  SOC_SEGMENT_PITCH,
   usable,
 } from "./format";
 import {
-  BOTTOM_BUTTONS,
   COUNTERS,
   SOC,
   SPEED,
-  STATUS_GRID,
   STATUS_ICONS,
   STEER,
   TOOLBAR,
@@ -39,19 +44,8 @@ function imageBox(asset: BakedAsset, x: number, y: number): Record<string, numbe
   return { translateX: x, translateY: y, width: baked.w, height: baked.h };
 }
 
-/** 在给定槽位内居中（返回值相对父元素，父元素已位于槽位原点）。 */
-function centeredInSlot(asset: BakedAsset, w: number, h: number): Record<string, number> {
-  const baked = BAKED[asset];
-  return {
-    translateX: Math.round((w - baked.w) / 2),
-    translateY: Math.round((h - baked.h) / 2),
-    width: baked.w,
-    height: baked.h,
-  };
-}
-
 /** 主屏组件。 */
-export default function MainScreen(props: { platform: Platform }) {
+export default function MainScreen(props: { platform: Platform; onNavigate: (tab: TabId) => void; onOpenCamera?: () => void }) {
   const [state, setState] = createSignal<VehicleState | undefined>(undefined);
   const [faults, setFaults] = createSignal<FaultSnapshot>({ timestampMs: 0, faults: [] });
   const [locked, setLocked] = createSignal(false);
@@ -71,7 +65,7 @@ export default function MainScreen(props: { platform: Platform }) {
 
   /** 主动作：点击按钮时的提示音。 */
   const press = (): void => {
-    props.platform.audio.play("button");
+    playButton(props.platform);
   };
 
   /** 运行模式素材（S/E/P）。 */
@@ -138,21 +132,17 @@ export default function MainScreen(props: { platform: Platform }) {
     }
   };
 
-  /** 电量条宽度（像素）。 */
-  const socFillWidth = (): number => {
+  /** 电量条分段形状（完整分段数 + 末尾像素）。 */
+  const socShape = (): { full: number; partial: number } => {
     const signal = state()?.socPercent;
-    if (signal === undefined || signal.quality !== "valid") return 0;
-    const percent = Math.min(100, Math.max(0, signal.value)) / 100;
-    return Math.round(SOC.bar.w * percent);
+    if (signal === undefined || signal.quality !== "valid") return { full: 0, partial: 0 };
+    return socBarShape(signal.value);
   };
 
   return (
     <View class={SCREEN_CLASS}>
-      {/* 底部按钮槽（背景由 View 绘制，参考 main_bg.png） */}
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.home.x, translateY: BOTTOM_BUTTONS.home.y, width: BOTTOM_BUTTONS.home.w, height: BOTTOM_BUTTONS.home.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.monitor.x, translateY: BOTTOM_BUTTONS.monitor.y, width: BOTTOM_BUTTONS.monitor.w, height: BOTTOM_BUTTONS.monitor.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.fault.x, translateY: BOTTOM_BUTTONS.fault.y, width: BOTTOM_BUTTONS.fault.w, height: BOTTOM_BUTTONS.fault.h }} />
-      <View class={SLOT_CLASS} style={{ translateX: BOTTOM_BUTTONS.set.x, translateY: BOTTOM_BUTTONS.set.y, width: BOTTOM_BUTTONS.set.w, height: BOTTOM_BUTTONS.set.h }} />
+      {/* 背景（原始 800×480 背景图两片） */}
+      <ScreenBackground id="main" />
 
       {/* 顶栏 */}
       <Text class={CLASS.clock} style={{ translateX: TOP.rtc.x, translateY: TOP.rtc.y, width: TOP.rtc.w, height: TOP.rtc.h }}>
@@ -175,27 +165,40 @@ export default function MainScreen(props: { platform: Platform }) {
       <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.runMode.x, translateY: TOOLBAR.runMode.y, width: TOOLBAR.runMode.w, height: TOOLBAR.runMode.h }} focusable onPress={press}>
         <Image src={BAKED[modeAsset()].src} class="absolute left-0 top-0" style={imageBox(modeAsset(), 0, 0)} />
       </View>
-      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.camera.x, translateY: TOOLBAR.camera.y, width: TOOLBAR.camera.w, height: TOOLBAR.camera.h }} focusable onPress={press}>
+      <View class="absolute left-0 top-0" style={{ translateX: TOOLBAR.camera.x, translateY: TOOLBAR.camera.y, width: TOOLBAR.camera.w, height: TOOLBAR.camera.h }} focusable onPress={() => { press(); props.onOpenCamera?.(); }}>
         <Image src={BAKED.camera_1.src} class="absolute left-0 top-0" style={imageBox("camera_1", 0, 0)} />
       </View>
 
-      {/* 车速 */}
-      <Text class={speedClass(state()?.speedKph.quality)} style={{ translateX: SPEED.value.x, translateY: SPEED.value.y, width: SPEED.value.w, height: SPEED.value.h }}>
-        {formatSpeed(state()?.speedKph)}
-      </Text>
+      {/* 车速（54px 数字贴图，颜色随信号质量） */}
+      <DigitNumber text={formatSpeed(state()?.speedKph)} set={speedDigitSet(state()?.speedKph.quality)} x={SPEED.value.x} y={SPEED.value.y} w={SPEED.value.w} h={SPEED.value.h} align="right" />
       <Text class={CLASS.speedUnit} style={{ translateX: SPEED.unit.x, translateY: SPEED.unit.y, width: SPEED.unit.w, height: SPEED.unit.h }}>
         km/h
       </Text>
 
-      {/* 电量 */}
+      {/* 电量（分段贴图：轨道两片 + 完整分段 + 末尾像素块） */}
       <Text class={CLASS.socLabel} style={{ translateX: SOC.label.x, translateY: SOC.label.y, width: SOC.label.w, height: SOC.label.h }}>
         soc
       </Text>
-      <Text class={CLASS.socValue} style={{ translateX: SOC.value.x, translateY: SOC.value.y, width: SOC.value.w, height: SOC.value.h }}>
-        {formatSoc(state()?.socPercent)}
-      </Text>
-      <View class={SOC_TRACK_CLASS} style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: SOC.bar.w, height: SOC.bar.h }} />
-      <View class={socFillClass(state()?.socPercent)} style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: socFillWidth(), height: SOC.bar.h }} />
+      <DigitNumber text={formatSoc(state()?.socPercent)} set="soc36" x={SOC.value.x} y={SOC.value.y} w={SOC.value.w} h={SOC.value.h} align="right" />
+      <Image src={BAKED.soc_track_t0.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x, translateY: SOC.bar.y, width: BAKED.soc_track_t0.w, height: BAKED.soc_track_t0.h }} />
+      <Image src={BAKED.soc_track_t1.src} class="absolute left-0 top-0" style={{ translateX: SOC.bar.x + 512, translateY: SOC.bar.y, width: BAKED.soc_track_t1.w, height: BAKED.soc_track_t1.h }} />
+      <For each={Array.from({ length: socShape().full }, (_, index) => index)}>
+        {(index) => (
+          <Image
+            src={BAKED[socSegmentAsset(state()?.socPercent.value)].src}
+            class="absolute left-0 top-0"
+            style={{
+              translateX: SOC.bar.x + index * SOC_SEGMENT_PITCH,
+              translateY: SOC.bar.y,
+              width: BAKED[socSegmentAsset(state()?.socPercent.value)].w,
+              height: BAKED[socSegmentAsset(state()?.socPercent.value)].h,
+            }}
+          />
+        )}
+      </For>
+      <Show when={socShape().partial > 0}>
+        <View class={socFillClass(state()?.socPercent)} style={{ translateX: SOC.bar.x + socShape().full * SOC_SEGMENT_PITCH, translateY: SOC.bar.y, width: socShape().partial, height: SOC.bar.h }} />
+      </Show>
 
       {/* 工时 / 里程 */}
       <Text class={CLASS.counter} style={{ translateX: COUNTERS.workhourValue.x, translateY: COUNTERS.workhourValue.y, width: COUNTERS.workhourValue.w, height: COUNTERS.workhourValue.h }}>
@@ -221,7 +224,7 @@ export default function MainScreen(props: { platform: Platform }) {
 
       {/* 车辆图形 */}
       <Show when={gearBaked()}>
-        {(asset) => <Image src={BAKED[asset()].src} class="absolute left-0 top-0" style={imageBox(asset(), VEHICLE.gear.x, VEHICLE.gear.y)} />}
+        {(asset: () => BakedAsset) => <Image src={BAKED[asset()].src} class="absolute left-0 top-0" style={imageBox(asset(), VEHICLE.gear.x, VEHICLE.gear.y)} />}
       </Show>
       <Image
         src={hasFault() ? BAKED.forklift_1.src : BAKED.forklift.src}
@@ -242,19 +245,8 @@ export default function MainScreen(props: { platform: Platform }) {
         )}
       </For>
 
-      {/* 底部导航图标 */}
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.home.x, translateY: BOTTOM_BUTTONS.home.y, width: BOTTOM_BUTTONS.home.w, height: BOTTOM_BUTTONS.home.h }} focusable onPress={press}>
-        <Image src={BAKED.home_1.src} class="absolute left-0 top-0" style={centeredInSlot("home_1", BOTTOM_BUTTONS.home.w, BOTTOM_BUTTONS.home.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.monitor.x, translateY: BOTTOM_BUTTONS.monitor.y, width: BOTTOM_BUTTONS.monitor.w, height: BOTTOM_BUTTONS.monitor.h }} focusable onPress={press}>
-        <Image src={BAKED.find_0.src} class="absolute left-0 top-0" style={centeredInSlot("find_0", BOTTOM_BUTTONS.monitor.w, BOTTOM_BUTTONS.monitor.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.fault.x, translateY: BOTTOM_BUTTONS.fault.y, width: BOTTOM_BUTTONS.fault.w, height: BOTTOM_BUTTONS.fault.h }} focusable onPress={press}>
-        <Image src={BAKED.error_0.src} class="absolute left-0 top-0" style={centeredInSlot("error_0", BOTTOM_BUTTONS.fault.w, BOTTOM_BUTTONS.fault.h)} />
-      </View>
-      <View class="absolute left-0 top-0" style={{ translateX: BOTTOM_BUTTONS.set.x, translateY: BOTTOM_BUTTONS.set.y, width: BOTTOM_BUTTONS.set.w, height: BOTTOM_BUTTONS.set.h }} focusable onPress={press}>
-        <Image src={BAKED.set_0.src} class="absolute left-0 top-0" style={centeredInSlot("set_0", BOTTOM_BUTTONS.set.w, BOTTOM_BUTTONS.set.h)} />
-      </View>
+      {/* 底部导航 */}
+      <BottomNav active="home" onNavigate={props.onNavigate} onPress={press} />
     </View>
   );
 }

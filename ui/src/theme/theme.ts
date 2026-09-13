@@ -8,43 +8,59 @@ import type { Signal, SignalQuality } from "../platform/protocol";
 /** 屏幕根容器（取色自参考 main_bg.png）。 */
 export const SCREEN_CLASS = "w-full h-full bg-[#080304]";
 
-/** 底部四个按钮槽（背景图上已有槽形，取色 #161717）。 */
-export const SLOT_CLASS = "absolute left-0 top-0 rounded-[8] bg-[#161717]";
+/** 子屏翻页按钮（透明槽，图标由 Image 绘制）。 */
+export const PAGE_BUTTON_CLASS = "absolute left-0 top-0";
 
-/** 电量条轨道。 */
-export const SOC_TRACK_CLASS = "absolute left-0 top-0 rounded-[4] border border-[#595757] bg-[#1a1a1a]";
+/** 子屏标题。 */
+export const TITLE_CLASS = "absolute left-0 top-0 text-2xl text-[#f5f7fa]";
 
 /** 主屏文字 class（字号使用受支持的字库槽位）。 */
 export const CLASS = {
   clock: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
-  speedNormal: "absolute left-0 top-0 text-right text-5xl text-[#f5f7fa] font-bold",
-  speedWarning: "absolute left-0 top-0 text-right text-5xl text-[#f59e0b] font-bold",
-  speedCritical: "absolute left-0 top-0 text-right text-5xl text-[#ef4444] font-bold",
   speedUnit: "absolute left-0 top-0 text-2xl text-[#9aa4b2]",
   socLabel: "absolute left-0 top-0 text-lg text-[#9aa4b2]",
-  socValue: "absolute left-0 top-0 text-right text-4xl text-[#f5f7fa] font-bold",
   counter: "absolute left-0 top-0 text-2xl text-[#f5f7fa] font-bold",
   counterLabel: "absolute left-0 top-0 text-xs text-[#9aa4b2]",
   steerValue: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
+  screenTitle: "absolute left-0 top-0 text-2xl text-[#f5f7fa]",
+  pageLabel: "absolute left-0 top-0 text-center text-base text-[#f5f7fa]",
+  rowText: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
+  rowIndex: "absolute left-0 top-0 text-base text-[#9aa4b2]",
+  rowValue: "absolute left-0 top-0 text-lg text-right text-[#f5f7fa]",
+  emptyText: "absolute left-0 top-0 text-center text-xl text-[#9aa4b2]",
+  menuItemText: "absolute left-0 top-0 text-center text-lg text-[#f5f7fa]",
+  progressLabel: "absolute left-0 top-0 text-right text-base text-[#b3b2b3]",
+  enterButtonText: "absolute left-0 top-0 text-center text-xl text-[#f5f7fa]",
+  chargingStatus: "absolute left-0 top-0 text-center text-xl text-[#fcfcfc]",
+  dialogLabel: "absolute left-0 top-0 text-base text-[#f5f7fa]",
+  dialogLabelDisabled: "absolute left-0 top-0 text-base text-[#7c7c7c]",
+  dialogValue: "absolute left-0 top-0 text-right text-xl text-[#f5f7fa]",
+  passwordText: "absolute left-0 top-0 text-lg text-[#f5f7fa]",
+  passwordKey: "absolute left-0 top-0 text-center text-2xl text-[#f5f7fa]",
+  cameraOffline: "absolute left-0 top-0 text-center text-2xl text-[#e5e7eb]",
+  cameraChannel: "absolute left-0 top-0 text-center text-xl text-[#9aa4b2]",
+  cameraButton: "absolute left-0 top-0 text-center text-2xl text-[#9aa4b2]",
+  cameraButtonActive: "absolute left-0 top-0 text-center text-2xl text-[#f5f7fa]",
+
 } as const;
 
-/** 电量条填充色（返回完整字面量）。 */
+/** 电量条填充色（返回完整字面量；分段阈值与参考一致）。 */
 export function socFillClass(signal: Signal<number> | undefined): string {
   const value = signal !== undefined && signal.quality === "valid" ? signal.value : -1;
-  if (value >= 50) return "absolute left-0 top-0 rounded-[4] bg-[#00a552]";
-  if (value >= 20) return "absolute left-0 top-0 rounded-[4] bg-[#f8b62d]";
-  if (value >= 0) return "absolute left-0 top-0 rounded-[4] bg-[#c10706]";
-  return "absolute left-0 top-0 rounded-[4] bg-[#595757]";
+  if (value > 20) return "absolute left-0 top-0 rounded-[6] bg-[#00a552]";
+  if (value > 10) return "absolute left-0 top-0 rounded-[6] bg-[#f8b62d]";
+  if (value >= 0) return "absolute left-0 top-0 rounded-[6] bg-[#c10706]";
+  return "absolute left-0 top-0 rounded-[6] bg-[#595757]";
 }
 
-/** 速度值颜色随信号质量切换（返回完整字面量）。 */
-export function speedClass(quality: SignalQuality | undefined): string {
+/** 速度数字贴图集合随信号质量切换。 */
+export function speedDigitSet(quality: SignalQuality | undefined): "speed54" | "speed54w" | "speed54c" {
   switch (quality) {
     case "valid":
-      return CLASS.speedNormal;
+      return "speed54";
     case "stale":
-      return CLASS.speedWarning;
+      return "speed54w";
     default:
-      return CLASS.speedCritical;
+      return "speed54c";
   }
 }

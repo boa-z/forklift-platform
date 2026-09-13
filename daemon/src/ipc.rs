@@ -216,7 +216,29 @@ fn serve_client(
             Message::Ping(nonce) => {
                 send_message(&mut connection, &Message::Pong(nonce));
             }
-            Message::PlaySound(_) | Message::SetVolume(_) | Message::SetBrightness(_) => {
+            // 授权/设置类命令由服务循环处理并自行应答（AuthLevel/Settings/Ok/Error）。
+            Message::VerifyPassword { .. }
+            | Message::SetAdminPassword { .. }
+            | Message::EnterLicenseTail { .. }
+            | Message::GetSettings
+            | Message::SetSettings { .. } => {
+                if command_tx
+                    .send(ClientCommand {
+                        client_id: id,
+                        message: message.clone(),
+                    })
+                    .is_err()
+                {
+                    log::error!(target: "ipc", "服务循环已退出，命令通道关闭");
+                    break;
+                }
+            }
+            Message::PlaySound(_)
+            | Message::SetVolume(_)
+            | Message::SetBrightness(_)
+            | Message::ReportPowerOn { .. }
+            | Message::SwipeReply { .. }
+            | Message::SetAntiDismantle { .. } => {
                 if command_tx
                     .send(ClientCommand {
                         client_id: id,

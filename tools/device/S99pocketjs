@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# 开机启动 PocketJS 叉车仪表（替代官方 test_lvgl demo）。
+# 部署到设备 /etc/init.d/S99pocketjs，由 tools/d211-default-app.sh 安装。
+#
+# 说明：test_lvgl 忽略 SIGTERM，必须 SIGKILL；应用需要焦点会话（setsid），
+# 否则 shell 退出时会被 SIGHUP 掉。日志写到 /var/log -> /tmp（tmpfs）。
+
+DAEMON=/opt/pocketjs/pocketjs-d211
+APPDIR=/opt/pocketjs
+LOGFILE=/var/log/pocketjs.log
+PIDFILE=/var/run/pocketjs.pid
+
+start() {
+	printf "Starting pocketjs: "
+	# 应用或 pak 未部署时不接管显示：避免杀掉官方 demo 后黑屏。
+	[ -x "$DAEMON" ] || {
+		printf "Skip (no %s)\n" "$DAEMON"
+		return 0
+	}
+	[ -f /data/pocketjs/app.pak ] || [ -f "$APPDIR/app.pak" ] || {
+		printf "Skip (no app.pak)\n"
+		return 0
+	}
+	# 官方 demo 不响应 SIGTERM（实测），用 SIGKILL 清场；同时清掉可能残留的
+	# 旧实例（否则新旧实例争 /dev/fb0，新实例启动后立即退出）。
+	killall -9 test_lvgl 2>/dev/null
+	killall -9 pocketjs-d211 2>/dev/null
+	sleep 1
+	cd "$APPDIR" || {
+		printf "Fail (no %s)\n" "$APPDIR"
+		return 1
+	}
+	# 数据分区（S98ubidata 挂载）上有 pak 时优先使用：OS 分区只留宿主与入口。
+	if [ -f /data/pocketjs/app.pak ]; then
+		export POCKET_PAK=/data/pocketjs/app.pak
+	fi
+	setsid ./pocketjs-d211 >"$LOGFILE" 2>&1 &
+	PID=$!
+	echo "$PID" >"$PIDFILE"
+	printf "OK \n"
+}
+
+stop() {
+	printf "Stopping pocketjs: "
+	if [ -f "$PIDFILE" ]; then
+		kill -9 "$(cat "$PIDFILE")" 2>/dev/null
+		mv -f "$PIDFILE" /tmp/pocketjs.pid.stopped 2>/dev/null
+	fi
+	printf "OK \n"
+}
+
+case "$1" in
+start)
+	start
+	;;
+stop)
+	stop
+	;;
+restart)
+	stop
+	sleep 1
+	start
+	;;
+*)
+	echo "usage: $0 {start|stop|restart}"
+	exit 1
+	;;
+esac

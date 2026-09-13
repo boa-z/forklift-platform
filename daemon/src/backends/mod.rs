@@ -5,10 +5,12 @@ pub mod adc;
 pub mod audio;
 pub mod camera;
 pub mod can;
+pub mod mcu;
 pub mod watchdog;
 
 pub use adc::{AdcBackend, AdcChannel, IioAdcBackend, MockAdcBackend};
 pub use audio::{AlsaAudioBackend, AudioBackend, MockAudioBackend};
 pub use camera::{AicCameraBackend, CameraBackend, CameraHealth, MockCameraBackend};
 pub use can::{CanBackend, CanError, CanFrame, MockCanBackend, SocketCanBackend};
+pub use mcu::{McuBackend, MockMcuBackend, SerialMcuBackend};
 pub use watchdog::{LinuxWatchdog, MockWatchdog, WatchdogBackend};

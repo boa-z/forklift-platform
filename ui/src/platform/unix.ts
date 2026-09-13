@@ -3,37 +3,10 @@
 
 import { connect as connectStream, type Socket } from "node:net";
 
-import { decodeFrame, encodeClient, HEADER_SIZE, MAX_PAYLOAD, type ClientMessage, type ServerMessage } from "./protocol";
+import { decodeFrame, encodeClient, FrameDecoder, type ClientMessage, type ServerMessage } from "./protocol";
 import type { Transport } from "./transport";
 
-/** 字节流分帧：累积数据并按帧头长度切出完整帧。 */
-export class FrameDecoder {
-  private buffer = new Uint8Array(0);
-
-  /** 追加一块数据，返回其中完整的帧。 */
-  push(chunk: Uint8Array): Uint8Array[] {
-    const merged = new Uint8Array(this.buffer.byteLength + chunk.byteLength);
-    merged.set(this.buffer, 0);
-    merged.set(chunk, this.buffer.byteLength);
-    this.buffer = merged;
-
-    const frames: Uint8Array[] = [];
-    for (;;) {
-      if (this.buffer.byteLength < HEADER_SIZE) break;
-      const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, HEADER_SIZE);
-      const payloadLength = view.getUint32(8, true);
-      if (payloadLength > MAX_PAYLOAD) {
-        throw new Error(`帧载荷超限：${payloadLength}`);
-      }
-      const frameLength = HEADER_SIZE + payloadLength;
-      if (this.buffer.byteLength < frameLength) break;
-      frames.push(this.buffer.slice(0, frameLength));
-      this.buffer = this.buffer.slice(frameLength);
-    }
-    return frames;
-  }
-}
-
+export { FrameDecoder } from "./protocol";
 /** macOS 开发用 Unix socket 传输。 */
 export class UnixTransport implements Transport {
   private socket: Socket | undefined;

@@ -35,6 +35,16 @@ pub struct Config {
     pub camera_enable: bool,
     /// 使用 mock 后端而不是 Linux/ArtInChip 接口。
     pub use_mock_hardware: bool,
+    /// 启用 MCU（模组）串口链路。
+    pub mcu_enable: bool,
+    /// MCU 串口设备（D70T：GPD_P6/P7 接模组）。
+    pub mcu_device: PathBuf,
+    /// MCU 串口波特率（参考工程 115200）。
+    pub mcu_baud: u32,
+    /// 管理员密码等授权状态的持久化路径。
+    pub auth_path: PathBuf,
+    /// UI 设置位域的持久化路径。
+    pub settings_path: PathBuf,
     pub log_level: String,
 }
 
@@ -51,6 +61,11 @@ impl Default for Config {
             brightness: 80,
             camera_enable: true,
             use_mock_hardware: true,
+            mcu_enable: false,
+            mcu_device: PathBuf::from("/dev/ttyS1"),
+            mcu_baud: 115200,
+            auth_path: PathBuf::from("/var/lib/forklift/auth.toml"),
+            settings_path: PathBuf::from("/var/lib/forklift/settings.toml"),
             log_level: "info".to_string(),
         }
     }
